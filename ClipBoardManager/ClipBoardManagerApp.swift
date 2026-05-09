@@ -5,36 +5,68 @@ import SwiftData
 struct ClipBoardManagerApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @StateObject private var clipboardVM = ClipboardViewModel()
-    
+
+    @AppStorage("showInDock") private var showInDock = true
+    @AppStorage("menuBarIcon") private var menuBarIcon = true
+
     var body: some Scene {
-        WindowGroup("ClipBoardManager") {
+        WindowGroup("ClipBoardManager", id: "main") {
             MainWindowView()
                 .environmentObject(clipboardVM)
                 .modelContainer(for: ClipboardItem.self)
+                .onAppear {
+                    applyActivationPolicy()
+                }
+                .onChange(of: showInDock) { _, _ in
+                    applyActivationPolicy()
+                }
         }
-        .defaultSize(width: 1000, height: 600)
-        
-        MenuBarExtra("ClipBoard", systemImage: "doc.on.clipboard") {
+        .defaultSize(width: 1000, height: 640)
+
+        MenuBarExtra("ClipBoard", systemImage: "doc.on.clipboard", isInserted: $menuBarIcon) {
             MenuBarView()
                 .environmentObject(clipboardVM)
                 .modelContainer(for: ClipboardItem.self)
         }
         .menuBarExtraStyle(.window)
-        
-        Settings {
-            PreferencesView()
-                .environmentObject(clipboardVM)
+    }
+
+    private func applyActivationPolicy() {
+        let policy: NSApplication.ActivationPolicy = showInDock ? .regular : .accessory
+        guard NSApp.activationPolicy() != policy else { return }
+
+        // Remember the window that was focused so we can restore it after the
+        // policy change (switching to .accessory makes AppKit briefly hand
+        // focus to another app).
+        let previousKeyWindow = NSApp.keyWindow
+            ?? NSApp.windows.first(where: { $0.isVisible && $0.canBecomeKey })
+
+        NSApp.setActivationPolicy(policy)
+
+        DispatchQueue.main.async {
+            NSApp.activate(ignoringOtherApps: true)
+            previousKeyWindow?.makeKeyAndOrderFront(nil)
         }
     }
 }
 
 class AppDelegate: NSObject, NSApplicationDelegate {
     private var hotKeyMonitor: Any?
-    
+
     func applicationDidFinishLaunching(_ notification: Notification) {
+        applyInitialActivationPolicy()
         setupGlobalHotKey()
     }
-    
+
+    private func applyInitialActivationPolicy() {
+        let defaults = UserDefaults.standard
+        if defaults.object(forKey: "showInDock") == nil {
+            defaults.set(true, forKey: "showInDock")
+        }
+        let showInDock = defaults.bool(forKey: "showInDock")
+        NSApp.setActivationPolicy(showInDock ? .regular : .accessory)
+    }
+
     private func setupGlobalHotKey() {
         hotKeyMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { event in
             let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
@@ -47,7 +79,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             }
         }
     }
-    
+
     deinit {
         if let monitor = hotKeyMonitor {
             NSEvent.removeMonitor(monitor)

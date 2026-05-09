@@ -62,6 +62,24 @@ final class ClipboardItem {
         ClipboardItemType(rawValue: type) ?? .text
     }
     
+    var resolvedFileURL: URL? {
+        if let raw = fileURL, !raw.isEmpty {
+            if raw.hasPrefix("file://"), let url = URL(string: raw) {
+                return url
+            }
+            return URL(fileURLWithPath: raw)
+        }
+        let firstLine = content.split(separator: "\n").first.map(String.init) ?? content
+        guard !firstLine.isEmpty else { return nil }
+        if firstLine.hasPrefix("file://"), let url = URL(string: firstLine) {
+            return url
+        }
+        if firstLine.hasPrefix("/") {
+            return URL(fileURLWithPath: firstLine)
+        }
+        return nil
+    }
+
     var formattedDate: String {
         let formatter = DateFormatter()
         let calendar = Calendar.current

@@ -7,8 +7,6 @@ import AppKit
 class ClipboardViewModel: ObservableObject {
     @Published var searchText = ""
     @Published var selectedType: ClipboardItemType? = nil
-    @Published var selectedItem: ClipboardItem? = nil
-    @Published var selectedItems: Set<UUID> = []
     @Published var isMonitoring = true
     @Published var showExportPanel = false
     
@@ -23,9 +21,18 @@ class ClipboardViewModel: ObservableObject {
             sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
         )
         
-        monitor.startMonitoring { [weak self] type, content, imageData, fileURL, sourceApp in
+        monitor.startMonitoring { [weak self] type, content, imageData, fileURL, sourceApp, bundleId in
             guard let self = self else { return }
-            
+
+            // Apply user filter rules first.
+            if FilterSettingsStore.shared.shouldExclude(
+                type: type,
+                content: content,
+                sourceBundleId: bundleId
+            ) {
+                return
+            }
+
             // Check for duplicate content
             let recentDescriptor = FetchDescriptor<ClipboardItem>(
                 predicate: #Predicate { $0.content == content },
@@ -66,16 +73,18 @@ class ClipboardViewModel: ObservableObject {
     func copyToClipboard(_ item: ClipboardItem) {
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
-        
+
         switch item.itemType {
         case .text, .rtf, .url:
             pasteboard.setString(item.content, forType: .string)
         case .image:
             if let data = item.imageData {
                 pasteboard.setData(data, forType: .tiff)
+            } else if let url = item.resolvedFileURL {
+                pasteboard.writeObjects([url as NSURL])
             }
         case .video, .file:
-            if let path = item.fileURL, let url = URL(string: path) {
+            if let url = item.resolvedFileURL {
                 pasteboard.writeObjects([url as NSURL])
             }
         }
@@ -84,17 +93,6 @@ class ClipboardViewModel: ObservableObject {
     func deleteItem(_ item: ClipboardItem, context: ModelContext) {
         context.delete(item)
         try? context.save()
-        if selectedItem?.id == item.id {
-            selectedItem = nil
-        }
-    }
-    
-    func deleteItems(_ items: [ClipboardItem], context: ModelContext) {
-        for item in items {
-            context.delete(item)
-        }
-        try? context.save()
-        selectedItems.removeAll()
     }
     
     func deleteAll(context: ModelContext) {
@@ -105,34 +103,16 @@ class ClipboardViewModel: ObservableObject {
             }
             try? context.save()
         }
-        selectedItems.removeAll()
-        selectedItem = nil
     }
-    
+
     func toggleFavorite(_ item: ClipboardItem) {
         item.isFavorite.toggle()
     }
-    
+
     func togglePin(_ item: ClipboardItem) {
         item.isPinned.toggle()
     }
-    
-    func toggleSelection(_ id: UUID) {
-        if selectedItems.contains(id) {
-            selectedItems.remove(id)
-        } else {
-            selectedItems.insert(id)
-        }
-    }
-    
-    func selectAll(_ items: [ClipboardItem]) {
-        selectedItems = Set(items.map { $0.id })
-    }
-    
-    func deselectAll() {
-        selectedItems.removeAll()
-    }
-    
+
     func filteredItems(_ items: [ClipboardItem]) -> [ClipboardItem] {
         var result = items
         

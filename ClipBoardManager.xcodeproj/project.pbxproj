@@ -14,10 +14,19 @@
 		A10005 /* ClipboardViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10005; };
 		A10006 /* MainWindowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10006; };
 		A10007 /* ClipboardItemRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10007; };
-		A10008 /* DetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10008; };
 		A10009 /* MenuBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10009; };
-		A10010 /* PreferencesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10010; };
 		A10011 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B10011; };
+		A10012 /* QuickLookCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10012; };
+		A10013 /* FileOpener.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10013; };
+		A10014 /* ThumbnailLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10014; };
+		A10015 /* ThumbnailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10015; };
+		A10016 /* PreviewPopover.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10016; };
+		A10017 /* FilterSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10017; };
+		A10018 /* ToastView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10018; };
+		A10019 /* ToastCenter.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10019; };
+		A10020 /* SettingsPanelView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10020; };
+		A10021 /* AppNavigation.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10021; };
+		A10022 /* VisualEffectView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10022; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -28,10 +37,19 @@
 		B10005 /* ClipboardViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardViewModel.swift; sourceTree = "<group>"; };
 		B10006 /* MainWindowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainWindowView.swift; sourceTree = "<group>"; };
 		B10007 /* ClipboardItemRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardItemRow.swift; sourceTree = "<group>"; };
-		B10008 /* DetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DetailView.swift; sourceTree = "<group>"; };
 		B10009 /* MenuBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarView.swift; sourceTree = "<group>"; };
-		B10010 /* PreferencesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreferencesView.swift; sourceTree = "<group>"; };
 		B10011 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		B10012 /* QuickLookCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickLookCoordinator.swift; sourceTree = "<group>"; };
+		B10013 /* FileOpener.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileOpener.swift; sourceTree = "<group>"; };
+		B10014 /* ThumbnailLoader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThumbnailLoader.swift; sourceTree = "<group>"; };
+		B10015 /* ThumbnailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThumbnailView.swift; sourceTree = "<group>"; };
+		B10016 /* PreviewPopover.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreviewPopover.swift; sourceTree = "<group>"; };
+		B10017 /* FilterSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FilterSettings.swift; sourceTree = "<group>"; };
+		B10018 /* ToastView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToastView.swift; sourceTree = "<group>"; };
+		B10019 /* ToastCenter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToastCenter.swift; sourceTree = "<group>"; };
+		B10020 /* SettingsPanelView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsPanelView.swift; sourceTree = "<group>"; };
+		B10021 /* AppNavigation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppNavigation.swift; sourceTree = "<group>"; };
+		B10022 /* VisualEffectView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VisualEffectView.swift; sourceTree = "<group>"; };
 		B10099 /* ClipBoardManager.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ClipBoardManager.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -71,6 +89,8 @@
 			isa = PBXGroup;
 			children = (
 				B10002 /* ClipboardItem.swift */,
+				B10017 /* FilterSettings.swift */,
+				B10021 /* AppNavigation.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -80,9 +100,12 @@
 			children = (
 				B10006 /* MainWindowView.swift */,
 				B10007 /* ClipboardItemRow.swift */,
-				B10008 /* DetailView.swift */,
 				B10009 /* MenuBarView.swift */,
-				B10010 /* PreferencesView.swift */,
+				B10015 /* ThumbnailView.swift */,
+				B10016 /* PreviewPopover.swift */,
+				B10018 /* ToastView.swift */,
+				B10020 /* SettingsPanelView.swift */,
+				B10022 /* VisualEffectView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -100,6 +123,10 @@
 			children = (
 				B10003 /* ClipboardMonitor.swift */,
 				B10004 /* ExportService.swift */,
+				B10012 /* QuickLookCoordinator.swift */,
+				B10013 /* FileOpener.swift */,
+				B10014 /* ThumbnailLoader.swift */,
+				B10019 /* ToastCenter.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -184,9 +211,18 @@
 				A10005 /* ClipboardViewModel.swift in Sources */,
 				A10006 /* MainWindowView.swift in Sources */,
 				A10007 /* ClipboardItemRow.swift in Sources */,
-				A10008 /* DetailView.swift in Sources */,
 				A10009 /* MenuBarView.swift in Sources */,
-				A10010 /* PreferencesView.swift in Sources */,
+				A10012 /* QuickLookCoordinator.swift in Sources */,
+				A10013 /* FileOpener.swift in Sources */,
+				A10014 /* ThumbnailLoader.swift in Sources */,
+				A10015 /* ThumbnailView.swift in Sources */,
+				A10016 /* PreviewPopover.swift in Sources */,
+				A10017 /* FilterSettings.swift in Sources */,
+				A10018 /* ToastView.swift in Sources */,
+				A10019 /* ToastCenter.swift in Sources */,
+				A10020 /* SettingsPanelView.swift in Sources */,
+				A10021 /* AppNavigation.swift in Sources */,
+				A10022 /* VisualEffectView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
