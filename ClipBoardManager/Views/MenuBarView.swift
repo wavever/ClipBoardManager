@@ -157,6 +157,8 @@ struct MenuBarRow: View {
     let onCopy: () -> Void
 
     @State private var isHovered = false
+    @State private var copySucceeded = false
+    @State private var resetTask: Task<Void, Never>?
 
     var body: some View {
         HStack(spacing: 9) {
@@ -181,21 +183,22 @@ struct MenuBarRow: View {
 
             Spacer(minLength: 6)
 
-            if isHovered {
+            if isHovered || copySucceeded {
                 Button {
-                    onCopy()
+                    triggerCopy()
                 } label: {
-                    Image(systemName: "doc.on.doc")
-                        .font(.system(size: 11))
-                        .foregroundStyle(.secondary)
+                    Image(systemName: copySucceeded ? "checkmark" : "doc.on.doc")
+                        .font(.system(size: 11, weight: copySucceeded ? .bold : .regular))
+                        .foregroundStyle(copySucceeded ? Color.white : Color.secondary)
                         .frame(width: 22, height: 22)
                         .background(
                             RoundedRectangle(cornerRadius: 5)
-                                .fill(.secondary.opacity(0.18))
+                                .fill(copySucceeded ? Color.green : Color.secondary.opacity(0.18))
                         )
                 }
                 .buttonStyle(.plain)
-                .help("复制")
+                .help(copySucceeded ? "已复制" : "复制")
+                .transition(.opacity)
             }
         }
         .padding(.horizontal, 8)
@@ -205,7 +208,23 @@ struct MenuBarRow: View {
                 .fill(isHovered ? Color.accentColor.opacity(0.12) : .clear)
         )
         .contentShape(Rectangle())
-        .onTapGesture(count: 2) { onCopy() }
+        .onTapGesture(count: 2) { triggerCopy() }
         .onHover { isHovered = $0 }
+        .onDisappear { resetTask?.cancel() }
+    }
+
+    private func triggerCopy() {
+        onCopy()
+        resetTask?.cancel()
+        withAnimation(.spring(response: 0.28, dampingFraction: 0.75)) {
+            copySucceeded = true
+        }
+        resetTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 1_200_000_000)
+            guard !Task.isCancelled else { return }
+            withAnimation(.easeOut(duration: 0.25)) {
+                copySucceeded = false
+            }
+        }
     }
 }

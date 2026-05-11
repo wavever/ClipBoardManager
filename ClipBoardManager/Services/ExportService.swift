@@ -1,6 +1,84 @@
 import AppKit
 import UniformTypeIdentifiers
 
+struct ExportFilter {
+    enum FavoriteScope: String, CaseIterable, Identifiable {
+        case all
+        case favoritesOnly
+        case pinnedOnly
+        var id: String { rawValue }
+        var displayName: String {
+            switch self {
+            case .all: return "全部"
+            case .favoritesOnly: return "仅收藏"
+            case .pinnedOnly: return "仅置顶"
+            }
+        }
+    }
+
+    enum DateRange: String, CaseIterable, Identifiable {
+        case allTime
+        case today
+        case last7Days
+        case last30Days
+        case custom
+        var id: String { rawValue }
+        var displayName: String {
+            switch self {
+            case .allTime: return "全部"
+            case .today: return "今天"
+            case .last7Days: return "最近 7 天"
+            case .last30Days: return "最近 30 天"
+            case .custom: return "自定义"
+            }
+        }
+    }
+
+    var types: Set<ClipboardItemType> = Set(ClipboardItemType.allCases)
+    var favoriteScope: FavoriteScope = .all
+    var dateRange: DateRange = .allTime
+    var customStart: Date = Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date()
+    var customEnd: Date = Date()
+    var includeImageData = false
+
+    func apply(to items: [ClipboardItem]) -> [ClipboardItem] {
+        var result = items.filter { types.contains($0.itemType) }
+
+        switch favoriteScope {
+        case .all: break
+        case .favoritesOnly: result = result.filter { $0.isFavorite }
+        case .pinnedOnly: result = result.filter { $0.isPinned }
+        }
+
+        if let interval = resolvedInterval {
+            result = result.filter { interval.contains($0.createdAt) }
+        }
+
+        return result
+    }
+
+    private var resolvedInterval: DateInterval? {
+        let now = Date()
+        let cal = Calendar.current
+        switch dateRange {
+        case .allTime: return nil
+        case .today:
+            let start = cal.startOfDay(for: now)
+            return DateInterval(start: start, end: now)
+        case .last7Days:
+            let start = cal.date(byAdding: .day, value: -7, to: now) ?? now
+            return DateInterval(start: start, end: now)
+        case .last30Days:
+            let start = cal.date(byAdding: .day, value: -30, to: now) ?? now
+            return DateInterval(start: start, end: now)
+        case .custom:
+            let s = min(customStart, customEnd)
+            let e = max(customStart, customEnd)
+            return DateInterval(start: s, end: e)
+        }
+    }
+}
+
 class ExportService {
     static let shared = ExportService()
     
@@ -52,6 +130,67 @@ class ExportService {
         }
     }
     
+    /// Build a JSON file from `items` filtered by `filter` and prompt the user
+    /// to pick a destination. Returns the chosen URL once the file is written,
+    /// or nil if the user cancelled / the write failed.
+    func exportToJSON(items: [ClipboardItem], filter: ExportFilter, completion: @escaping (Result<URL, Error>?) -> Void) {
+        let filtered = filter.apply(to: items)
+
+        let panel = NSSavePanel()
+        panel.canCreateDirectories = true
+        panel.allowedContentTypes = [.json]
+        let stamp = Self.filenameDateFormatter.string(from: Date())
+        panel.nameFieldStringValue = "clipboard_export_\(stamp).json"
+        panel.title = "导出剪贴板历史"
+
+        panel.begin { response in
+            guard response == .OK, let url = panel.url else {
+                completion(nil)
+                return
+            }
+            do {
+                let payload = Self.makePayload(items: filtered, includeImageData: filter.includeImageData)
+                let encoder = JSONEncoder()
+                encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
+                encoder.dateEncodingStrategy = .iso8601
+                let data = try encoder.encode(payload)
+                try data.write(to: url, options: [.atomic])
+                completion(.success(url))
+            } catch {
+                completion(.failure(error))
+            }
+        }
+    }
+
+    private static func makePayload(items: [ClipboardItem], includeImageData: Bool) -> ExportPayload {
+        let mapped = items.map { item -> ExportItemDTO in
+            ExportItemDTO(
+                id: item.id.uuidString,
+                type: item.type,
+                content: item.content,
+                preview: item.preview,
+                sourceApp: item.sourceApp.isEmpty ? nil : item.sourceApp,
+                fileURL: item.fileURL,
+                createdAt: item.createdAt,
+                isFavorite: item.isFavorite,
+                isPinned: item.isPinned,
+                imageDataBase64: includeImageData ? item.imageData?.base64EncodedString() : nil
+            )
+        }
+        return ExportPayload(
+            exportedAt: Date(),
+            count: mapped.count,
+            items: mapped
+        )
+    }
+
+    private static let filenameDateFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "yyyyMMdd_HHmmss"
+        f.locale = Locale(identifier: "en_US_POSIX")
+        return f
+    }()
+
     @discardableResult
     private func writeItem(_ item: ClipboardItem, to url: URL) -> Bool {
         do {
@@ -81,4 +220,25 @@ class ExportService {
             return false
         }
     }
+}
+
+// MARK: - JSON DTOs
+
+private struct ExportPayload: Encodable {
+    let exportedAt: Date
+    let count: Int
+    let items: [ExportItemDTO]
+}
+
+private struct ExportItemDTO: Encodable {
+    let id: String
+    let type: String
+    let content: String
+    let preview: String?
+    let sourceApp: String?
+    let fileURL: String?
+    let createdAt: Date
+    let isFavorite: Bool
+    let isPinned: Bool
+    let imageDataBase64: String?
 }

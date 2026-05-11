@@ -10,6 +10,8 @@ struct MainWindowView: View {
     @ObservedObject private var nav = AppNavigation.shared
     @ObservedObject private var toasts = ToastCenter.shared
 
+    @AppStorage("fdaOnboardingDismissed") private var fdaOnboardingDismissed = false
+
     private var filteredItems: [ClipboardItem] {
         vm.filteredItems(allItems)
     }
@@ -38,13 +40,41 @@ struct MainWindowView: View {
                     .padding(.top, 14)
                     .transition(.move(edge: .top).combined(with: .opacity))
                     .zIndex(1)
+                    .id(toast.id)
+            }
+
+            if !fdaOnboardingDismissed {
+                Color.black.opacity(0.45)
+                    .ignoresSafeArea()
+                    .onTapGesture {
+                        withAnimation(.easeOut(duration: 0.2)) {
+                            fdaOnboardingDismissed = true
+                        }
+                    }
+                    .transition(.opacity)
+                    .zIndex(2)
+
+                FullDiskAccessOnboardingView {
+                    withAnimation(.easeOut(duration: 0.2)) {
+                        fdaOnboardingDismissed = true
+                    }
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .transition(.opacity.combined(with: .scale(scale: 0.96)))
+                .zIndex(3)
             }
         }
+        .animation(.easeOut(duration: 0.22), value: fdaOnboardingDismissed)
         .onAppear {
             vm.startMonitoring(context: modelContext)
         }
         .onDisappear {
             vm.stopMonitoring()
+        }
+        .sheet(isPresented: $vm.showExportPanel) {
+            ExportPanelView(allItems: allItems) {
+                vm.showExportPanel = false
+            }
         }
     }
 
@@ -127,6 +157,16 @@ struct MainWindowView: View {
 
     private var toolbar: some View {
         HStack(spacing: 10) {
+            Picker("", selection: $vm.selectedScope) {
+                ForEach(ListScope.allCases) { scope in
+                    Label(scope.displayName, systemImage: scope.icon)
+                        .tag(scope)
+                }
+            }
+            .labelsHidden()
+            .pickerStyle(.segmented)
+            .frame(width: 200)
+
             Picker("", selection: $vm.selectedType) {
                 Text("全部类型").tag(nil as ClipboardItemType?)
                 ForEach(ClipboardItemType.allCases, id: \.self) { type in
@@ -176,6 +216,10 @@ struct MainWindowView: View {
             .keyboardShortcut(",", modifiers: .command)
 
             Menu {
+                Button("导出为 JSON…", systemImage: "square.and.arrow.up") {
+                    vm.showExportPanel = true
+                }
+                Divider()
                 Button("清空历史", role: .destructive) {
                     vm.deleteAll(context: modelContext)
                     ToastCenter.shared.show("已清空历史", systemImage: "trash.fill", tint: .red)
@@ -206,20 +250,45 @@ struct MainWindowView: View {
                         )
                     )
                     .frame(width: 92, height: 92)
-                Image(systemName: "tray")
+                Image(systemName: emptyStateIcon)
                     .font(.system(size: 38, weight: .light))
                     .foregroundStyle(Color.accentColor)
             }
-            Text(vm.searchText.isEmpty ? "暂无剪贴板记录" : "未找到匹配的内容")
+            Text(emptyStateTitle)
                 .font(.system(size: 15, weight: .semibold))
-            Text(vm.searchText.isEmpty
-                 ? "复制点什么试试 — 文本、图片、文件都可以"
-                 : "试试其他关键字或类型")
+            Text(emptyStateSubtitle)
                 .font(.system(size: 12))
                 .foregroundStyle(.secondary)
             Spacer()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private var emptyStateIcon: String {
+        if !vm.searchText.isEmpty { return "magnifyingglass" }
+        switch vm.selectedScope {
+        case .all: return "tray"
+        case .favorites: return "star"
+        case .pinned: return "pin"
+        }
+    }
+
+    private var emptyStateTitle: String {
+        if !vm.searchText.isEmpty { return "未找到匹配的内容" }
+        switch vm.selectedScope {
+        case .all: return "暂无剪贴板记录"
+        case .favorites: return "还没有收藏的内容"
+        case .pinned: return "还没有置顶的内容"
+        }
+    }
+
+    private var emptyStateSubtitle: String {
+        if !vm.searchText.isEmpty { return "试试其他关键字或类型" }
+        switch vm.selectedScope {
+        case .all: return "复制点什么试试 — 文本、图片、文件都可以"
+        case .favorites: return "在条目上点 ☆ 即可加入收藏"
+        case .pinned: return "在条目上点 📌 即可置顶"
+        }
     }
 
     private var cardList: some View {
@@ -263,6 +332,9 @@ struct MainWindowView: View {
                             if let url = item.resolvedFileURL {
                                 NSWorkspace.shared.open(url)
                             }
+                        },
+                        onOpenURL: {
+                            openInBrowser(item.content)
                         }
                     )
                     .contextMenu { contextMenu(for: item) }
@@ -283,6 +355,12 @@ struct MainWindowView: View {
         Button("复制", systemImage: "doc.on.doc") {
             vm.copyToClipboard(item)
             ToastCenter.shared.show("已复制")
+        }
+        if item.itemType == .url {
+            Divider()
+            Button("在浏览器中打开", systemImage: "safari") {
+                openInBrowser(item.content)
+            }
         }
         if item.resolvedFileURL != nil {
             Divider()
@@ -331,6 +409,18 @@ struct MainWindowView: View {
         Button("删除", systemImage: "trash", role: .destructive) {
             vm.deleteItem(item, context: modelContext)
             ToastCenter.shared.show("已删除", systemImage: "trash.fill", tint: .red)
+        }
+    }
+
+    private func openInBrowser(_ raw: String) {
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        let candidate: String = {
+            if trimmed.contains("://") { return trimmed }
+            return "https://\(trimmed)"
+        }()
+        if let url = URL(string: candidate) {
+            NSWorkspace.shared.open(url)
         }
     }
 }

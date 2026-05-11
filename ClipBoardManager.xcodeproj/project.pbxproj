@@ -27,6 +27,8 @@
 		A10020 /* SettingsPanelView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10020; };
 		A10021 /* AppNavigation.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10021; };
 		A10022 /* VisualEffectView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10022; };
+		A10023 /* FullDiskAccessOnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10023; };
+		A10024 /* ExportPanelView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10024; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -50,6 +52,8 @@
 		B10020 /* SettingsPanelView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsPanelView.swift; sourceTree = "<group>"; };
 		B10021 /* AppNavigation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppNavigation.swift; sourceTree = "<group>"; };
 		B10022 /* VisualEffectView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VisualEffectView.swift; sourceTree = "<group>"; };
+		B10023 /* FullDiskAccessOnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FullDiskAccessOnboardingView.swift; sourceTree = "<group>"; };
+		B10024 /* ExportPanelView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExportPanelView.swift; sourceTree = "<group>"; };
 		B10099 /* ClipBoardManager.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ClipBoardManager.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -106,6 +110,8 @@
 				B10018 /* ToastView.swift */,
 				B10020 /* SettingsPanelView.swift */,
 				B10022 /* VisualEffectView.swift */,
+				B10023 /* FullDiskAccessOnboardingView.swift */,
+				B10024 /* ExportPanelView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -223,6 +229,8 @@
 				A10020 /* SettingsPanelView.swift in Sources */,
 				A10021 /* AppNavigation.swift in Sources */,
 				A10022 /* VisualEffectView.swift in Sources */,
+				A10023 /* FullDiskAccessOnboardingView.swift in Sources */,
+				A10024 /* ExportPanelView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

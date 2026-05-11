@@ -3,10 +3,35 @@ import SwiftUI
 import SwiftData
 import AppKit
 
+enum ListScope: String, CaseIterable, Identifiable {
+    case all
+    case favorites
+    case pinned
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .all: return "全部"
+        case .favorites: return "收藏"
+        case .pinned: return "置顶"
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .all: return "tray.full"
+        case .favorites: return "star.fill"
+        case .pinned: return "pin.fill"
+        }
+    }
+}
+
 @MainActor
 class ClipboardViewModel: ObservableObject {
     @Published var searchText = ""
     @Published var selectedType: ClipboardItemType? = nil
+    @Published var selectedScope: ListScope = .all
     @Published var isMonitoring = true
     @Published var showExportPanel = false
     
@@ -115,11 +140,17 @@ class ClipboardViewModel: ObservableObject {
 
     func filteredItems(_ items: [ClipboardItem]) -> [ClipboardItem] {
         var result = items
-        
+
+        switch selectedScope {
+        case .all: break
+        case .favorites: result = result.filter { $0.isFavorite }
+        case .pinned: result = result.filter { $0.isPinned }
+        }
+
         if let type = selectedType {
             result = result.filter { $0.itemType == type }
         }
-        
+
         if !searchText.isEmpty {
             let query = searchText.lowercased()
             result = result.filter {
@@ -127,7 +158,15 @@ class ClipboardViewModel: ObservableObject {
                 $0.sourceApp.lowercased().contains(query)
             }
         }
-        
+
+        // Pinned items float to the top while preserving the createdAt-desc
+        // order from the @Query inside each group.
+        if selectedScope != .pinned {
+            let pinned = result.filter { $0.isPinned }
+            let others = result.filter { !$0.isPinned }
+            result = pinned + others
+        }
+
         return result
     }
 }

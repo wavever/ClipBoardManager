@@ -170,8 +170,27 @@ private struct GeneralSection: View {
     @Binding var showInDock: Bool
     @Binding var menuBarIcon: Bool
 
+    @AppStorage("fdaOnboardingDismissed") private var fdaOnboardingDismissed = false
+    @ObservedObject private var nav = AppNavigation.shared
+
     var body: some View {
         VStack(spacing: 14) {
+            SettingCard(title: "完全磁盘访问", subtitle: "授权后读取桌面、下载、文稿等位置的文件不会再弹窗") {
+                HStack(spacing: 10) {
+                    Button {
+                        FullDiskAccessOnboardingView.openFullDiskAccessPane()
+                    } label: {
+                        Label("打开系统设置", systemImage: "arrow.up.right.square")
+                    }
+                    Button {
+                        fdaOnboardingDismissed = false
+                        nav.showList()
+                    } label: {
+                        Label("重新查看引导", systemImage: "questionmark.circle")
+                    }
+                    Spacer()
+                }
+            }
             SettingCard(title: "登录时启动", subtitle: "登录系统时自动运行 ClipBoard Manager") {
                 Toggle("", isOn: $launchAtLogin).labelsHidden().toggleStyle(.switch)
             }

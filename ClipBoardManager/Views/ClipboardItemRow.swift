@@ -9,6 +9,7 @@ struct ClipboardItemRow: View {
     var onTogglePin: () -> Void = {}
     var onRevealInFinder: () -> Void = {}
     var onOpenFile: () -> Void = {}
+    var onOpenURL: () -> Void = {}
 
     @State private var isHovered = false
     @State private var showPreview = false
@@ -46,7 +47,7 @@ struct ClipboardItemRow: View {
                     Text("·").foregroundStyle(.tertiary)
                     Text(item.formattedDate)
                     Text("·").foregroundStyle(.tertiary)
-                    Text(item.itemType.displayName)
+                    Text(item.descriptiveTag)
                         .padding(.horizontal, 6)
                         .padding(.vertical, 1)
                         .background(.secondary.opacity(0.18))
@@ -128,11 +129,24 @@ struct ClipboardItemRow: View {
                 PreviewPopover(item: item)
             }
             HoverIconButton(
+                systemName: item.isPinned ? "pin.fill" : "pin",
+                help: item.isPinned ? "取消置顶" : "置顶",
+                tint: item.isPinned ? .orange : nil,
+                action: onTogglePin
+            )
+            HoverIconButton(
                 systemName: item.isFavorite ? "star.fill" : "star",
                 help: item.isFavorite ? "取消收藏" : "收藏",
                 tint: item.isFavorite ? .yellow : nil,
                 action: onToggleFavorite
             )
+            if item.itemType == .url {
+                HoverIconButton(
+                    systemName: "safari",
+                    help: "在浏览器中打开",
+                    action: onOpenURL
+                )
+            }
             if hasFile {
                 HoverIconButton(
                     systemName: "folder",
