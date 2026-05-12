@@ -29,6 +29,7 @@
 		A10022 /* VisualEffectView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10022; };
 		A10023 /* FullDiskAccessOnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10023; };
 		A10024 /* ExportPanelView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10024; };
+		A10025 /* EmbeddingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10025; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -54,6 +55,7 @@
 		B10022 /* VisualEffectView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VisualEffectView.swift; sourceTree = "<group>"; };
 		B10023 /* FullDiskAccessOnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FullDiskAccessOnboardingView.swift; sourceTree = "<group>"; };
 		B10024 /* ExportPanelView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExportPanelView.swift; sourceTree = "<group>"; };
+		B10025 /* EmbeddingService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmbeddingService.swift; sourceTree = "<group>"; };
 		B10099 /* ClipBoardManager.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ClipBoardManager.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -133,6 +135,7 @@
 				B10013 /* FileOpener.swift */,
 				B10014 /* ThumbnailLoader.swift */,
 				B10019 /* ToastCenter.swift */,
+				B10025 /* EmbeddingService.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -231,6 +234,7 @@
 				A10022 /* VisualEffectView.swift in Sources */,
 				A10023 /* FullDiskAccessOnboardingView.swift in Sources */,
 				A10024 /* ExportPanelView.swift in Sources */,
+				A10025 /* EmbeddingService.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

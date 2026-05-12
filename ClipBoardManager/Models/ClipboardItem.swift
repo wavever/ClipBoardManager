@@ -45,7 +45,9 @@ final class ClipboardItem {
     var isFavorite: Bool
     var isPinned: Bool
     var preview: String?
-    
+    var embedding: Data?
+    var embeddingLang: String?
+
     init(type: ClipboardItemType, content: String, imageData: Data? = nil, fileURL: String? = nil, sourceApp: String = "", preview: String? = nil) {
         self.id = UUID()
         self.type = type.rawValue
@@ -57,6 +59,8 @@ final class ClipboardItem {
         self.isFavorite = false
         self.isPinned = false
         self.preview = preview
+        self.embedding = nil
+        self.embeddingLang = nil
     }
     
     var itemType: ClipboardItemType {

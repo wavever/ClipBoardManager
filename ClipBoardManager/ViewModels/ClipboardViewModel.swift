@@ -34,7 +34,13 @@ class ClipboardViewModel: ObservableObject {
     @Published var selectedScope: ListScope = .all
     @Published var isMonitoring = true
     @Published var showExportPanel = false
-    
+    @Published var semanticSearchEnabled = false
+
+    /// Minimum cosine similarity for a clip to show up in semantic results.
+    /// Apple's sentence embeddings produce mostly-positive scores for related
+    /// text in the 0.3–0.8 range; below ~0.25 is usually noise.
+    private let semanticThreshold: Float = 0.25
+
     let monitor = ClipboardMonitor()
     
     var filteredTypeDisplayName: String {
@@ -42,12 +48,8 @@ class ClipboardViewModel: ObservableObject {
     }
     
     func startMonitoring(context: ModelContext) {
-        let descriptor = FetchDescriptor<ClipboardItem>(
-            sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
-        )
-        
         monitor.startMonitoring { [weak self] type, content, imageData, fileURL, sourceApp, bundleId in
-            guard let self = self else { return }
+            guard self != nil else { return }
 
             // Apply user filter rules first.
             if FilterSettingsStore.shared.shouldExclude(
@@ -76,6 +78,17 @@ class ClipboardViewModel: ObservableObject {
                 preview: String(content.prefix(200))
             )
             context.insert(item)
+            try? context.save()
+
+            // Compute embedding off the main thread, then write back.
+            let embedContent = content
+            Task { @MainActor in
+                let emb = await EmbeddingService.shared.embedAsync(embedContent)
+                guard let emb else { return }
+                item.embedding = emb.data
+                item.embeddingLang = emb.language
+                try? context.save()
+            }
             
             // Trim old items (keep max 500)
             let countDescriptor = FetchDescriptor<ClipboardItem>(
@@ -138,6 +151,35 @@ class ClipboardViewModel: ObservableObject {
         item.isPinned.toggle()
     }
 
+    // MARK: - Embedding backfill
+
+    /// One-shot pass: compute embeddings for any historical items that are
+    /// missing one. Runs on a detached task to avoid blocking the UI.
+    func backfillEmbeddings(context: ModelContext) {
+        Task { @MainActor in
+            // Re-embed items missing a vector OR whose vector was computed
+            // with a different model (dimension mismatch).
+            let descriptor = FetchDescriptor<ClipboardItem>(
+                sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
+            )
+            guard let orphans = try? context.fetch(descriptor) else { return }
+            for item in orphans {
+                guard !Task.isCancelled else { break }
+                guard item.itemType != .image else { continue }
+                // Skip items that already have a correctly-sized vector.
+                if let existing = item.embedding, existing.count == 2048 { continue }
+                let text = item.content
+                let vec = await EmbeddingService.shared.embedAsync(text)
+                guard let vec else { continue }
+                item.embedding = vec.data
+                item.embeddingLang = vec.language
+            }
+            try? context.save()
+        }
+    }
+
+    // MARK: - Filtering
+
     func filteredItems(_ items: [ClipboardItem]) -> [ClipboardItem] {
         var result = items
 
@@ -152,10 +194,14 @@ class ClipboardViewModel: ObservableObject {
         }
 
         if !searchText.isEmpty {
-            let query = searchText.lowercased()
-            result = result.filter {
-                $0.content.lowercased().contains(query) ||
-                $0.sourceApp.lowercased().contains(query)
+            if semanticSearchEnabled {
+                result = semanticFilter(result, query: searchText)
+            } else {
+                let query = searchText.lowercased()
+                result = result.filter {
+                    $0.content.lowercased().contains(query) ||
+                    $0.sourceApp.lowercased().contains(query)
+                }
             }
         }
 
@@ -168,5 +214,41 @@ class ClipboardViewModel: ObservableObject {
         }
 
         return result
+    }
+
+    /// Rank items by cosine similarity to the query embedding.
+    /// Since all items use the same underlying model (English sentence
+    /// embedding), we compare every item regardless of the stored language
+    /// tag. Falls back to keyword match when the query can't be embedded.
+    private func semanticFilter(_ items: [ClipboardItem], query: String) -> [ClipboardItem] {
+        let service = EmbeddingService.shared
+        guard let queryVec = service.embed(query) else {
+            let q = query.lowercased()
+            return items.filter {
+                $0.content.lowercased().contains(q) ||
+                $0.sourceApp.lowercased().contains(q)
+            }
+        }
+
+        struct Scored { let item: ClipboardItem; let score: Float }
+
+        var scored: [Scored] = []
+        for item in items {
+            guard let vecData = item.embedding, vecData.count == queryVec.data.count else { continue }
+            let sim = service.cosineSimilarity(queryVec.data, vecData)
+            if sim >= semanticThreshold {
+                scored.append(Scored(item: item, score: sim))
+            }
+        }
+        scored.sort { $0.score > $1.score }
+        // Fall back to keyword search if semantic matching found nothing.
+        if scored.isEmpty {
+            let q = query.lowercased()
+            return items.filter {
+                $0.content.lowercased().contains(q) ||
+                $0.sourceApp.lowercased().contains(q)
+            }
+        }
+        return scored.map { $0.item }
     }
 }

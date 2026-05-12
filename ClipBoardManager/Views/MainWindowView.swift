@@ -67,6 +67,7 @@ struct MainWindowView: View {
         .animation(.easeOut(duration: 0.22), value: fdaOnboardingDismissed)
         .onAppear {
             vm.startMonitoring(context: modelContext)
+            vm.backfillEmbeddings(context: modelContext)
         }
         .onDisappear {
             vm.stopMonitoring()
@@ -182,7 +183,7 @@ struct MainWindowView: View {
                 Image(systemName: "magnifyingglass")
                     .font(.system(size: 12))
                     .foregroundStyle(.secondary)
-                TextField("搜索内容…", text: $vm.searchText)
+                TextField(vm.semanticSearchEnabled ? "语义搜索…" : "搜索内容…", text: $vm.searchText)
                     .textFieldStyle(.plain)
                     .font(.system(size: 13))
                 if !vm.searchText.isEmpty {
@@ -195,6 +196,16 @@ struct MainWindowView: View {
                     }
                     .buttonStyle(.plain)
                 }
+                Divider().frame(height: 14).opacity(0.4)
+                Button {
+                    vm.semanticSearchEnabled.toggle()
+                } label: {
+                    Image(systemName: vm.semanticSearchEnabled ? "sparkle" : "text.magnifyingglass")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(vm.semanticSearchEnabled ? Color.purple : Color.secondary)
+                        .help(vm.semanticSearchEnabled ? "切换到全文搜索" : "切换到语义搜索")
+                }
+                .buttonStyle(.plain)
             }
             .padding(.horizontal, 10)
             .padding(.vertical, 6)

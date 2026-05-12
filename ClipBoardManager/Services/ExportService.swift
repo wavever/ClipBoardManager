@@ -82,6 +82,7 @@ struct ExportFilter {
 class ExportService {
     static let shared = ExportService()
     
+    @discardableResult
     func exportItem(_ item: ClipboardItem, to directory: URL? = nil) -> URL? {
         let savePanel = NSSavePanel()
         savePanel.canCreateDirectories = true
