@@ -34,6 +34,7 @@ final class FilterSettingsStore: ObservableObject {
     @Published var excludedApps: [AppFilterEntry] = [] { didSet { save() } }
     @Published var excludedTypes: Set<ClipboardItemType> = [] { didSet { save() } }
     @Published var textFilters: [TextFilterRule] = [] { didSet { save() } }
+    @Published var stripURLTracking: Bool = true { didSet { save() } }
 
     private let key = "filterSettings.v1"
     private var loading = false
@@ -46,6 +47,7 @@ final class FilterSettingsStore: ObservableObject {
         var excludedApps: [AppFilterEntry] = []
         var excludedTypes: [String] = []
         var textFilters: [TextFilterRule] = []
+        var stripURLTracking: Bool? = true
     }
 
     private func load() {
@@ -58,6 +60,7 @@ final class FilterSettingsStore: ObservableObject {
         excludedApps = state.excludedApps
         excludedTypes = Set(state.excludedTypes.compactMap { ClipboardItemType(rawValue: $0) })
         textFilters = state.textFilters
+        stripURLTracking = state.stripURLTracking ?? true
     }
 
     private func save() {
@@ -65,7 +68,8 @@ final class FilterSettingsStore: ObservableObject {
         let state = StoredState(
             excludedApps: excludedApps,
             excludedTypes: excludedTypes.map { $0.rawValue }.sorted(),
-            textFilters: textFilters
+            textFilters: textFilters,
+            stripURLTracking: stripURLTracking
         )
         if let data = try? JSONEncoder().encode(state) {
             UserDefaults.standard.set(data, forKey: key)

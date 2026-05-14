@@ -50,8 +50,16 @@ class ClipboardViewModel: ObservableObject {
     }
     
     func startMonitoring(context: ModelContext) {
-        monitor.startMonitoring { [weak self] type, content, imageData, fileURL, sourceApp, bundleId in
+        monitor.startMonitoring { [weak self] type, rawContent, imageData, fileURL, sourceApp, bundleId in
             guard self != nil else { return }
+
+            // Drop utm_*/fbclid/etc. before the URL ever lands in history.
+            let content: String = {
+                guard type == .url, FilterSettingsStore.shared.stripURLTracking else {
+                    return rawContent
+                }
+                return URLSanitizer.clean(rawContent)
+            }()
 
             // Apply user filter rules first.
             if FilterSettingsStore.shared.shouldExclude(

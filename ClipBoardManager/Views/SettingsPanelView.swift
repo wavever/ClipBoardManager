@@ -276,9 +276,21 @@ private struct FilterSection: View {
 
     var body: some View {
         VStack(spacing: 14) {
+            urlCleanupCard
             appsCard
             typesCard
             textRulesCard
+        }
+    }
+
+    private var urlCleanupCard: some View {
+        SettingCard(
+            title: "净化链接",
+            subtitle: "复制 http(s) 链接时自动去除 utm_*、fbclid、gclid 等跟踪参数"
+        ) {
+            Toggle("", isOn: $store.stripURLTracking)
+                .labelsHidden()
+                .toggleStyle(.switch)
         }
     }
 
