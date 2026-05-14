@@ -51,16 +51,25 @@ struct ClipboardItemRow: View {
                         .foregroundStyle(.primary)
                 }
 
-                HStack(spacing: 6) {
+                HStack(spacing: 8) {
                     Text(item.sourceApp)
-                    Text("·").foregroundStyle(.tertiary)
+                        .lineLimit(1)
+                    rowDot
                     Text(item.formattedDate)
-                    Text("·").foregroundStyle(.tertiary)
+                        .monospacedDigit()
+                    rowDot
                     Text(item.descriptiveTag)
+                        .font(.system(size: 10, weight: .medium))
                         .padding(.horizontal, 6)
-                        .padding(.vertical, 1)
-                        .background(.secondary.opacity(0.18))
-                        .clipShape(Capsule())
+                        .padding(.vertical, 1.5)
+                        .background(
+                            Capsule(style: .continuous)
+                                .fill(.secondary.opacity(0.14))
+                        )
+                        .overlay(
+                            Capsule(style: .continuous)
+                                .strokeBorder(.secondary.opacity(0.18), lineWidth: 0.5)
+                        )
                 }
                 .font(.system(size: 11))
                 .foregroundStyle(.secondary)
@@ -73,36 +82,30 @@ struct ClipboardItemRow: View {
             }
         }
         .padding(.horizontal, 14)
-        .padding(.vertical, 12)
+        .padding(.vertical, 11)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
             ZStack {
-                RoundedRectangle(cornerRadius: 12)
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
                     .fill(.regularMaterial)
-                    .opacity(isHovered ? 0.95 : 0.6)
-                if isHovered || isSelected {
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(
-                            LinearGradient(
-                                colors: [
-                                    Color.accentColor.opacity(isSelected ? 0.18 : 0.10),
-                                    Color.accentColor.opacity(isSelected ? 0.06 : 0.02)
-                                ],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
+                    .opacity(isHovered ? 0.95 : 0.55)
+                if isSelected {
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .fill(Color.accentColor.opacity(0.10))
+                } else if isHovered {
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .fill(Color.accentColor.opacity(0.045))
                 }
             }
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .strokeBorder(borderColor, lineWidth: (isHovered || isSelected) ? 1.5 : 1)
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .strokeBorder(borderColor, lineWidth: (isHovered || isSelected) ? 1 : 0.5)
         )
         .shadow(
-            color: isHovered ? Color.accentColor.opacity(0.18) : .black.opacity(0.04),
-            radius: isHovered ? 10 : 4,
-            y: isHovered ? 3 : 1
+            color: isHovered ? Color.accentColor.opacity(0.12) : .black.opacity(0.03),
+            radius: isHovered ? 6 : 2,
+            y: isHovered ? 2 : 1
         )
         .contentShape(RoundedRectangle(cornerRadius: 12))
         .onHover { hovering in
@@ -111,10 +114,25 @@ struct ClipboardItemRow: View {
     }
 
     private var borderColor: Color {
-        (isHovered || isSelected) ? .accentColor : .secondary.opacity(0.18)
+        if isSelected { return Color.accentColor }
+        if isHovered  { return Color.accentColor.opacity(0.55) }
+        return Color.secondary.opacity(0.15)
+    }
+
+    private var rowDot: some View {
+        Circle()
+            .fill(.tertiary)
+            .frame(width: 2.5, height: 2.5)
+            .opacity(0.7)
     }
 
     private var displayTitle: String {
+        // Merged entries set a preview prefixed with "[合并 N …]" — keep that
+        // label as the title so the row visually reads as a merge result
+        // instead of mirroring the first source item.
+        if let preview = item.preview, preview.hasPrefix("[合并 ") {
+            return preview.components(separatedBy: .newlines).first ?? preview
+        }
         if let url = item.resolvedFileURL { return url.lastPathComponent }
         let firstLine = (item.preview ?? item.content)
             .components(separatedBy: .newlines)

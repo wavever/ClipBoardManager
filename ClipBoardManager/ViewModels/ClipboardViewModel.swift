@@ -222,20 +222,31 @@ class ClipboardViewModel: ObservableObject {
         case .text, .rtf, .url:
             let sep = settings.resolvedTextSeparator()
             let mergedContent = sorted.map { $0.content }.joined(separator: sep)
+            // Build a one-line summary so the row title clearly reads as a
+            // merged entry instead of looking identical to the first source
+            // item (which is what naive `prefix(200)` produces).
+            let inline = sorted
+                .map { $0.content.replacingOccurrences(of: "\n", with: " ") }
+                .joined(separator: " · ")
+            let preview = "[合并 \(sorted.count) 条] " + String(inline.prefix(180))
             merged = ClipboardItem(
                 type: type,
                 content: mergedContent,
                 sourceApp: sourceApp,
-                preview: String(mergedContent.prefix(200))
+                preview: preview
             )
         case .file, .video:
             let sep = settings.resolvedFileSeparator()
             let mergedContent = sorted.map { $0.content }.joined(separator: sep)
+            let names = sorted
+                .map { $0.resolvedFileURL?.lastPathComponent ?? $0.content }
+                .joined(separator: " · ")
+            let preview = "[合并 \(sorted.count) 项] " + String(names.prefix(180))
             merged = ClipboardItem(
                 type: type,
                 content: mergedContent,
                 sourceApp: sourceApp,
-                preview: String(mergedContent.prefix(200))
+                preview: preview
             )
         case .image:
             let images = sorted.compactMap { ImageStitcher.imageFromItem($0) }
@@ -335,6 +346,14 @@ class ClipboardViewModel: ObservableObject {
 
         if let type = selectedType {
             result = result.filter { $0.itemType == type }
+        }
+
+        // When merging, the user can only combine items of one type. Once a
+        // first item is selected we lock the visible list to that same type so
+        // incompatible rows can't be tapped by mistake.
+        if isSelectionMode,
+           let anchorType = items.first(where: { selectedItemIDs.contains($0.id) })?.itemType {
+            result = result.filter { $0.itemType == anchorType }
         }
 
         if !searchText.isEmpty {

@@ -33,6 +33,7 @@
 		A10026 /* MergeSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10026; };
 		A10027 /* ImageStitcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10027; };
 		A10028 /* CopyStats.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10028; };
+		A10029 /* StatsPanelView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10029; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -62,6 +63,7 @@
 		B10026 /* MergeSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MergeSettings.swift; sourceTree = "<group>"; };
 		B10027 /* ImageStitcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageStitcher.swift; sourceTree = "<group>"; };
 		B10028 /* CopyStats.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CopyStats.swift; sourceTree = "<group>"; };
+		B10029 /* StatsPanelView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatsPanelView.swift; sourceTree = "<group>"; };
 		B10099 /* ClipBoardManager.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ClipBoardManager.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -122,6 +124,7 @@
 				B10022 /* VisualEffectView.swift */,
 				B10023 /* FullDiskAccessOnboardingView.swift */,
 				B10024 /* ExportPanelView.swift */,
+				B10029 /* StatsPanelView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -247,6 +250,7 @@
 				A10026 /* MergeSettings.swift in Sources */,
 				A10027 /* ImageStitcher.swift in Sources */,
 				A10028 /* CopyStats.swift in Sources */,
+				A10029 /* StatsPanelView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

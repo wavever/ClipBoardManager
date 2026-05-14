@@ -3,6 +3,7 @@ import SwiftUI
 enum MainScreen: String {
     case list
     case settings
+    case stats
 }
 
 @MainActor
@@ -15,4 +16,5 @@ final class AppNavigation: ObservableObject {
 
     func showSettings() { screen = .settings }
     func showList() { screen = .list }
+    func showStats() { screen = .stats }
 }

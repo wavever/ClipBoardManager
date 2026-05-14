@@ -32,6 +32,9 @@ struct MainWindowView: View {
                 case .settings:
                     SettingsPanelView()
                         .transition(.move(edge: .trailing).combined(with: .opacity))
+                case .stats:
+                    StatsPanelView()
+                        .transition(.move(edge: .trailing).combined(with: .opacity))
                 }
             }
             .animation(.easeOut(duration: 0.22), value: nav.screen)
@@ -80,31 +83,15 @@ struct MainWindowView: View {
         }
     }
 
-    private var headerSubtitle: String {
-        let base = "\(allItems.count) 条记录 · \(allItems.filter { $0.isFavorite }.count) 收藏"
-        guard stats.enabled else { return base }
-        return base + " · 今日 \(stats.todayCount()) 次"
-    }
-
     private var backgroundDecoration: some View {
-        ZStack {
-            LinearGradient(
-                colors: [
-                    Color.accentColor.opacity(0.10),
-                    Color.clear
-                ],
-                startPoint: .topLeading,
-                endPoint: .center
-            )
-            LinearGradient(
-                colors: [
-                    Color.clear,
-                    Color.purple.opacity(0.06)
-                ],
-                startPoint: .top,
-                endPoint: .bottomTrailing
-            )
-        }
+        // Single, restrained accent halo in the upper-left — avoids the
+        // overlapping multi-gradient look that reads as generic.
+        RadialGradient(
+            colors: [Color.accentColor.opacity(0.10), Color.clear],
+            center: UnitPoint(x: 0.08, y: -0.05),
+            startRadius: 20,
+            endRadius: 520
+        )
         .ignoresSafeArea()
     }
 
@@ -135,7 +122,6 @@ struct MainWindowView: View {
                     }
                 }
                 .animation(.easeOut(duration: 0.18), value: vm.isSelectionMode)
-                .animation(.easeOut(duration: 0.18), value: vm.selectedItemIDs)
             }
         }
     }
@@ -209,116 +195,91 @@ struct MainWindowView: View {
             )
             .disabled(!canMerge)
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 9)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
         .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(.regularMaterial)
+            ZStack {
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .fill(.thickMaterial)
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .fill(
+                        LinearGradient(
+                            colors: [Color.white.opacity(0.06), Color.clear],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
+            }
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .strokeBorder(.separator.opacity(0.4), lineWidth: 0.5)
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .strokeBorder(.separator.opacity(0.35), lineWidth: 0.5)
         )
-        .shadow(color: .black.opacity(0.15), radius: 12, y: 4)
+        .shadow(color: .black.opacity(0.18), radius: 18, y: 6)
     }
 
     private var header: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: 14) {
             ZStack {
-                RoundedRectangle(cornerRadius: 10)
-                    .fill(
-                        LinearGradient(
-                            colors: [.accentColor, .accentColor.opacity(0.7)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .fill(Color.accentColor.opacity(0.12))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            .strokeBorder(Color.accentColor.opacity(0.35), lineWidth: 1)
                     )
-                    .frame(width: 38, height: 38)
-                    .shadow(color: .accentColor.opacity(0.3), radius: 6, y: 2)
+                    .frame(width: 36, height: 36)
                 Image(systemName: "doc.on.clipboard.fill")
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundStyle(.white)
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(Color.accentColor)
             }
 
-            VStack(alignment: .leading, spacing: 1) {
+            VStack(alignment: .leading, spacing: 4) {
                 Text("剪贴板历史")
-                    .font(.system(size: 18, weight: .bold))
-                Text(headerSubtitle)
-                    .font(.system(size: 11))
-                    .foregroundStyle(.secondary)
+                    .font(.system(size: 17, weight: .semibold))
+                    .tracking(0.2)
+                HStack(spacing: 8) {
+                    HeaderStat(value: "\(allItems.count)", label: "条记录")
+                    HeaderStatDivider()
+                    HeaderStat(value: "\(allItems.filter { $0.isFavorite }.count)", label: "收藏")
+                    if stats.enabled {
+                        HeaderStatDivider()
+                        HeaderStat(value: "\(stats.todayCount())", label: "今日", tint: .accentColor)
+                    }
+                }
             }
 
             Spacer()
         }
         .padding(.horizontal, 18)
-        .padding(.top, 14)
-        .padding(.bottom, 10)
+        .padding(.top, 16)
+        .padding(.bottom, 12)
     }
 
     private var toolbar: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 12) {
             Picker("", selection: $vm.selectedScope) {
                 ForEach(ListScope.allCases) { scope in
-                    Label(scope.displayName, systemImage: scope.icon)
-                        .tag(scope)
+                    Label(scope.displayName, systemImage: scope.icon).tag(scope)
                 }
             }
             .labelsHidden()
             .pickerStyle(.segmented)
-            .frame(width: 200)
+            .frame(width: 210)
+            .controlSize(.regular)
 
             Picker("", selection: $vm.selectedType) {
                 Text("全部类型").tag(nil as ClipboardItemType?)
                 ForEach(ClipboardItemType.allCases, id: \.self) { type in
-                    Label(type.displayName, systemImage: type.icon)
-                        .tag(type as ClipboardItemType?)
+                    Label(type.displayName, systemImage: type.icon).tag(type as ClipboardItemType?)
                 }
             }
             .labelsHidden()
             .pickerStyle(.menu)
-            .frame(width: 130)
+            .frame(width: 128)
 
-            HStack(spacing: 7) {
-                Image(systemName: "magnifyingglass")
-                    .font(.system(size: 12))
-                    .foregroundStyle(.secondary)
-                TextField(vm.semanticSearchEnabled ? "语义搜索…" : "搜索内容…", text: $vm.searchText)
-                    .textFieldStyle(.plain)
-                    .font(.system(size: 13))
-                if !vm.searchText.isEmpty {
-                    Button {
-                        vm.searchText = ""
-                    } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.system(size: 12))
-                            .foregroundStyle(.tertiary)
-                    }
-                    .buttonStyle(.plain)
-                }
-                Divider().frame(height: 14).opacity(0.4)
-                Button {
-                    vm.semanticSearchEnabled.toggle()
-                } label: {
-                    Image(systemName: vm.semanticSearchEnabled ? "sparkle" : "text.magnifyingglass")
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(vm.semanticSearchEnabled ? Color.purple : Color.secondary)
-                        .help(vm.semanticSearchEnabled ? "切换到全文搜索" : "切换到语义搜索")
-                }
-                .buttonStyle(.plain)
-            }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 6)
-            .background(
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(.secondary.opacity(0.12))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 8)
-                    .strokeBorder(.separator.opacity(0.3), lineWidth: 0.5)
-            )
-            .frame(maxWidth: 320)
+            ToolbarSearchField(text: $vm.searchText, semantic: $vm.semanticSearchEnabled)
 
-            Spacer()
+            Spacer(minLength: 8)
 
             ToolbarIconButton(
                 systemName: vm.isSelectionMode ? "checkmark.circle.fill" : "checkmark.circle",
@@ -331,55 +292,41 @@ struct MainWindowView: View {
                 }
             }
 
+            ToolbarIconButton(systemName: "chart.bar.xaxis", help: "活跃统计") {
+                nav.showStats()
+            }
+
             ToolbarIconButton(systemName: "gearshape", help: "设置") {
                 nav.showSettings()
             }
             .keyboardShortcut(",", modifiers: .command)
-
-            Menu {
-                Button("导出为 JSON…", systemImage: "square.and.arrow.up") {
-                    vm.showExportPanel = true
-                }
-                Divider()
-                Button("清空历史", role: .destructive) {
-                    vm.deleteAll(context: modelContext)
-                    ToastCenter.shared.show("已清空历史", systemImage: "trash.fill", tint: .red)
-                }
-            } label: {
-                Image(systemName: "ellipsis")
-                    .font(.system(size: 14, weight: .semibold))
-                    .frame(width: 30, height: 30)
-            }
-            .menuStyle(.borderlessButton)
-            .menuIndicator(.hidden)
-            .frame(width: 30, height: 30)
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
     }
 
     private var emptyState: some View {
-        VStack(spacing: 14) {
+        VStack(spacing: 18) {
             Spacer()
             ZStack {
                 Circle()
-                    .fill(
-                        LinearGradient(
-                            colors: [.accentColor.opacity(0.18), .accentColor.opacity(0.05)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                    .frame(width: 92, height: 92)
+                    .stroke(Color.accentColor.opacity(0.15), lineWidth: 1)
+                    .frame(width: 110, height: 110)
+                Circle()
+                    .stroke(Color.accentColor.opacity(0.08), lineWidth: 1)
+                    .frame(width: 150, height: 150)
                 Image(systemName: emptyStateIcon)
-                    .font(.system(size: 38, weight: .light))
-                    .foregroundStyle(Color.accentColor)
+                    .font(.system(size: 30, weight: .light))
+                    .foregroundStyle(Color.accentColor.opacity(0.85))
             }
-            Text(emptyStateTitle)
-                .font(.system(size: 15, weight: .semibold))
-            Text(emptyStateSubtitle)
-                .font(.system(size: 12))
-                .foregroundStyle(.secondary)
+            VStack(spacing: 6) {
+                Text(emptyStateTitle)
+                    .font(.system(size: 16, weight: .semibold))
+                Text(emptyStateSubtitle)
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+            }
             Spacer()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -461,16 +408,20 @@ struct MainWindowView: View {
                         }
                     )
                     .contextMenu { contextMenu(for: item) }
-                    .onTapGesture(count: 2) {
-                        guard !vm.isSelectionMode else { return }
-                        vm.copyToClipboard(item)
-                        ToastCenter.shared.show("已复制")
-                    }
-                    .onTapGesture {
-                        if vm.isSelectionMode {
-                            vm.toggleSelection(item)
-                        }
-                    }
+                    // Mount only one tap gesture at a time. Having both a
+                    // single- and a double-tap on the same view makes SwiftUI
+                    // delay the single tap until it can rule out a second
+                    // click — that's the lag we were seeing on selection.
+                    .gesture(
+                        vm.isSelectionMode
+                            ? TapGesture(count: 1).onEnded {
+                                vm.toggleSelection(item)
+                            }
+                            : TapGesture(count: 2).onEnded {
+                                vm.copyToClipboard(item)
+                                ToastCenter.shared.show("已复制")
+                            }
+                    )
                 }
             }
             .padding(.horizontal, 16)
@@ -552,6 +503,92 @@ struct MainWindowView: View {
         if let url = URL(string: candidate) {
             NSWorkspace.shared.open(url)
         }
+    }
+}
+
+// MARK: - Header stat chip
+
+private struct HeaderStat: View {
+    let value: String
+    let label: String
+    var tint: Color? = nil
+
+    var body: some View {
+        HStack(spacing: 4) {
+            Text(value)
+                .font(.system(size: 12, weight: .semibold, design: .rounded))
+                .monospacedDigit()
+                .foregroundStyle(tint ?? .primary)
+            Text(label)
+                .font(.system(size: 11))
+                .foregroundStyle(.secondary)
+        }
+    }
+}
+
+private struct HeaderStatDivider: View {
+    var body: some View {
+        Circle()
+            .fill(.tertiary)
+            .frame(width: 2.5, height: 2.5)
+            .opacity(0.6)
+    }
+}
+
+// MARK: - Search field
+
+private struct ToolbarSearchField: View {
+    @Binding var text: String
+    @Binding var semantic: Bool
+
+    @FocusState private var focused: Bool
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(focused ? Color.accentColor : .secondary)
+                .animation(.easeOut(duration: 0.15), value: focused)
+            TextField(semantic ? "语义搜索…" : "搜索内容…", text: $text)
+                .textFieldStyle(.plain)
+                .font(.system(size: 13))
+                .focused($focused)
+            if !text.isEmpty {
+                Button { text = "" } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.tertiary)
+                }
+                .buttonStyle(.plain)
+                .transition(.opacity)
+            }
+            Divider().frame(height: 12).opacity(0.4)
+            Button {
+                withAnimation(.easeOut(duration: 0.15)) { semantic.toggle() }
+            } label: {
+                Image(systemName: semantic ? "sparkle" : "text.magnifyingglass")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(semantic ? Color.accentColor : Color.secondary)
+            }
+            .buttonStyle(.plain)
+            .help(semantic ? "切换到全文搜索" : "切换到语义搜索")
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(.regularMaterial)
+                .opacity(focused ? 0.95 : 0.7)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .strokeBorder(
+                    focused ? Color.accentColor.opacity(0.6) : Color.secondary.opacity(0.18),
+                    lineWidth: focused ? 1 : 0.5
+                )
+        )
+        .frame(maxWidth: 320)
+        .animation(.easeOut(duration: 0.18), value: focused)
     }
 }
 
