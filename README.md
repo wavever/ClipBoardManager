@@ -30,6 +30,15 @@
 - 🖼️ **图片数据可选** — 导出时可选包含图片 base64 数据
 - 💾 **单条导出** — 右键菜单导出单条为原始格式（txt/png/原格式）
 
+### 合并
+- ✅ **多选模式** — 工具栏 ✓ 按钮进入选择模式，每行显示勾选框
+- 🪄 **同类型合并** — 选中 2+ 条同类型条目，一键拼接为新记录
+- 📝 **文本/链接/富文本** — 自定义分隔符（空行/换行/逗号/制表符/自定义，支持 `\n` `\t` 转义）
+- 📁 **文件/视频** — 路径按行拼接，分隔符可配置
+- 🖼️ **图片拼接** — 可选启用，支持纵向 / 横向拼接，可设置间距与背景色（透明 / 白 / 黑）
+- 🗑️ **可选删除原条目** — 合并后保留或删除原始条目，设置中切换
+- 🔘 **批量操作** — 选择栏内提供全选 / 反选 / 清空 / 取消按钮
+
 ### 内容感知
 - 🏷️ **细粒度类型标签** — 文件按 UTType 显示精确类型（音频文件/视频文件/PDF文档/压缩文件/软件包/代码文件等）
 - 🔗 **链接一键打开** — URL 类型条目 hover 显示 safari 按钮，支持纯域名自动补 https
@@ -66,12 +75,13 @@ ClipBoardManager/
 ├── Models/
 │   ├── ClipboardItem.swift                # SwiftData 数据模型（含 embedding 字段）
 │   ├── FilterSettings.swift               # 过滤规则（排除应用/类型/关键词）
+│   ├── MergeSettings.swift                # 合并偏好（分隔符、图片拼接、删除原条目）
 │   └── AppNavigation.swift                # 导航状态管理
 ├── Views/
-│   ├── MainWindowView.swift               # 主窗口（toolbar + 列表 + toast overlay）
-│   ├── ClipboardItemRow.swift             # 列表行视图（hover 操作栏）
+│   ├── MainWindowView.swift               # 主窗口（toolbar + 列表 + 多选浮动栏 + toast）
+│   ├── ClipboardItemRow.swift             # 列表行视图（hover 操作栏 + 选择框）
 │   ├── MenuBarView.swift                  # 菜单栏弹出视图（含复制成功状态）
-│   ├── SettingsPanelView.swift            # 设置面板（通用/快捷键/过滤）
+│   ├── SettingsPanelView.swift            # 设置面板（通用/快捷键/过滤/合并）
 │   ├── ExportPanelView.swift              # JSON 导出筛选面板
 │   ├── FullDiskAccessOnboardingView.swift # 完全磁盘访问引导卡片
 │   ├── ToastView.swift                    # Toast 提示视图
@@ -79,11 +89,12 @@ ClipBoardManager/
 │   ├── PreviewPopover.swift               # 内容预览弹出框
 │   └── VisualEffectView.swift             # 毛玻璃背景
 ├── ViewModels/
-│   └── ClipboardViewModel.swift           # 视图模型（筛选/语义搜索/监控）
+│   └── ClipboardViewModel.swift           # 视图模型（筛选/语义搜索/监控/选择合并）
 ├── Services/
 │   ├── ClipboardMonitor.swift             # 剪贴板监听服务
 │   ├── EmbeddingService.swift             # 本地句子 embedding（NLEmbedding 封装）
 │   ├── ExportService.swift                # 导出服务（JSON/单条）
+│   ├── ImageStitcher.swift                # 图片纵/横向拼接（NSImage 绘制）
 │   ├── ToastCenter.swift                  # 全局 Toast 管理
 │   ├── ThumbnailLoader.swift              # QuickLook 缩略图加载
 │   ├── QuickLookCoordinator.swift         # QuickLook 预览协调
