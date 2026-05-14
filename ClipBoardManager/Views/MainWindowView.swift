@@ -82,6 +82,25 @@ struct MainWindowView: View {
                 vm.showExportPanel = false
             }
         }
+        .sheet(isPresented: $vm.showSnippetEditor) {
+            SnippetEditorView(
+                onSave: { content, type, pinned in
+                    vm.createSnippet(
+                        content: content,
+                        type: type,
+                        pinned: pinned,
+                        context: modelContext
+                    )
+                    vm.showSnippetEditor = false
+                    ToastCenter.shared.show(
+                        pinned ? "片段已保存并置顶" : "片段已保存",
+                        systemImage: "square.and.pencil",
+                        tint: .accentColor
+                    )
+                },
+                onCancel: { vm.showSnippetEditor = false }
+            )
+        }
     }
 
     private var backgroundDecoration: some View {
@@ -281,6 +300,11 @@ struct MainWindowView: View {
             ToolbarSearchField(text: $vm.searchText, semantic: $vm.semanticSearchEnabled)
 
             Spacer(minLength: 8)
+
+            ToolbarIconButton(systemName: "square.and.pencil", help: "新建片段") {
+                vm.showSnippetEditor = true
+            }
+            .keyboardShortcut("n", modifiers: .command)
 
             ToolbarIconButton(
                 systemName: vm.isSelectionMode ? "checkmark.circle.fill" : "checkmark.circle",

@@ -37,6 +37,7 @@ class ClipboardViewModel: ObservableObject {
     @Published var semanticSearchEnabled = false
     @Published var isSelectionMode = false
     @Published var selectedItemIDs: Set<UUID> = []
+    @Published var showSnippetEditor = false
 
     /// Minimum cosine similarity for a clip to show up in semantic results.
     /// Apple's sentence embeddings produce mostly-positive scores for related
@@ -158,6 +159,36 @@ class ClipboardViewModel: ObservableObject {
         }
     }
     
+    /// Hand-authored entry created via the snippet editor. Lives alongside
+    /// captured clips but tagged with sourceApp="片段" so it's distinguishable.
+    @discardableResult
+    func createSnippet(
+        content: String,
+        type: ClipboardItemType,
+        pinned: Bool,
+        context: ModelContext
+    ) -> ClipboardItem {
+        let item = ClipboardItem(
+            type: type,
+            content: content,
+            sourceApp: "片段",
+            preview: String(content.prefix(200))
+        )
+        item.isPinned = pinned
+        context.insert(item)
+        try? context.save()
+
+        // Embed off-thread so the snippet shows up in semantic search.
+        Task { @MainActor in
+            let emb = await EmbeddingService.shared.embedAsync(content)
+            guard let emb else { return }
+            item.embedding = emb.data
+            item.embeddingLang = emb.language
+            try? context.save()
+        }
+        return item
+    }
+
     func deleteItem(_ item: ClipboardItem, context: ModelContext) {
         context.delete(item)
         try? context.save()

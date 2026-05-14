@@ -35,6 +35,7 @@
 		A10028 /* CopyStats.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10028; };
 		A10029 /* StatsPanelView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10029; };
 		A10030 /* URLSanitizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10030; };
+		A10031 /* SnippetEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10031; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -66,6 +67,7 @@
 		B10028 /* CopyStats.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CopyStats.swift; sourceTree = "<group>"; };
 		B10029 /* StatsPanelView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatsPanelView.swift; sourceTree = "<group>"; };
 		B10030 /* URLSanitizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = URLSanitizer.swift; sourceTree = "<group>"; };
+		B10031 /* SnippetEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SnippetEditorView.swift; sourceTree = "<group>"; };
 		B10099 /* ClipBoardManager.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ClipBoardManager.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -127,6 +129,7 @@
 				B10023 /* FullDiskAccessOnboardingView.swift */,
 				B10024 /* ExportPanelView.swift */,
 				B10029 /* StatsPanelView.swift */,
+				B10031 /* SnippetEditorView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -255,6 +258,7 @@
 				A10028 /* CopyStats.swift in Sources */,
 				A10029 /* StatsPanelView.swift in Sources */,
 				A10030 /* URLSanitizer.swift in Sources */,
+				A10031 /* SnippetEditorView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
