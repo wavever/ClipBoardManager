@@ -62,12 +62,18 @@ class ClipboardViewModel: ObservableObject {
                 return
             }
 
-            // Check for duplicate content
+            // Re-copying the same content shouldn't grow a wall of duplicates
+            // — refresh the existing entry's timestamp so it bubbles back to
+            // the top, and still count the copy in stats.
             let recentDescriptor = FetchDescriptor<ClipboardItem>(
                 predicate: #Predicate { $0.content == content },
                 sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
             )
-            if let existing = try? context.fetch(recentDescriptor), !existing.isEmpty {
+            if let existing = try? context.fetch(recentDescriptor),
+               let mostRecent = existing.first {
+                mostRecent.createdAt = Date()
+                try? context.save()
+                CopyStatsStore.shared.recordCopy()
                 return
             }
             
