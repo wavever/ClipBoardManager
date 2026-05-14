@@ -133,7 +133,18 @@ class ClipboardViewModel: ObservableObject {
 
         switch item.itemType {
         case .text, .rtf, .url:
-            pasteboard.setString(item.content, forType: .string)
+            // Optional cleanup: drop trailing whitespace/newlines that almost
+            // never matter but commonly leak in from triple-click or
+            // select-all in editors.
+            var output = item.content
+            if UserDefaults.standard.bool(forKey: "trimTrailingWhitespaceOnCopy") {
+                output = output.replacingOccurrences(
+                    of: "\\s+$",
+                    with: "",
+                    options: .regularExpression
+                )
+            }
+            pasteboard.setString(output, forType: .string)
         case .image:
             if let data = item.imageData {
                 pasteboard.setData(data, forType: .tiff)

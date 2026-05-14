@@ -14,6 +14,7 @@ struct SettingsPanelView: View {
     @AppStorage("showInDock") private var showInDock = true
     @AppStorage("menuBarIcon") private var menuBarIcon = true
     @AppStorage("hideFromCapture") private var hideFromCapture = false
+    @AppStorage("trimTrailingWhitespaceOnCopy") private var trimTrailing = false
 
     enum Section: String, CaseIterable, Identifiable {
         case general = "通用"
@@ -127,7 +128,8 @@ struct SettingsPanelView: View {
                 launchAtLogin: $launchAtLogin,
                 showInDock: $showInDock,
                 menuBarIcon: $menuBarIcon,
-                hideFromCapture: $hideFromCapture
+                hideFromCapture: $hideFromCapture,
+                trimTrailing: $trimTrailing
             )
         case .shortcut:
             ShortcutSection(globalHotkey: $globalHotkey)
@@ -189,6 +191,7 @@ private struct GeneralSection: View {
     @Binding var showInDock: Bool
     @Binding var menuBarIcon: Bool
     @Binding var hideFromCapture: Bool
+    @Binding var trimTrailing: Bool
 
     @AppStorage("fdaOnboardingDismissed") private var fdaOnboardingDismissed = false
     @ObservedObject private var nav = AppNavigation.shared
@@ -225,6 +228,12 @@ private struct GeneralSection: View {
                 subtitle: "开启后剪贴板窗口不会出现在录屏、屏幕共享或截图中"
             ) {
                 Toggle("", isOn: $hideFromCapture).labelsHidden().toggleStyle(.switch)
+            }
+            SettingCard(
+                title: "复制时清理末尾空白",
+                subtitle: "再次复制历史条目时自动去除末尾的空格、换行，常见于代码片段"
+            ) {
+                Toggle("", isOn: $trimTrailing).labelsHidden().toggleStyle(.switch)
             }
             SettingCard(title: "最大记录数", subtitle: "超过该上限时会自动清理最旧的内容") {
                 HStack {
