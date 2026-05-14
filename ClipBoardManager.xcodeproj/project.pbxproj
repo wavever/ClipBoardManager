@@ -32,6 +32,7 @@
 		A10025 /* EmbeddingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10025; };
 		A10026 /* MergeSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10026; };
 		A10027 /* ImageStitcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10027; };
+		A10028 /* CopyStats.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10028; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -60,6 +61,7 @@
 		B10025 /* EmbeddingService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmbeddingService.swift; sourceTree = "<group>"; };
 		B10026 /* MergeSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MergeSettings.swift; sourceTree = "<group>"; };
 		B10027 /* ImageStitcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageStitcher.swift; sourceTree = "<group>"; };
+		B10028 /* CopyStats.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CopyStats.swift; sourceTree = "<group>"; };
 		B10099 /* ClipBoardManager.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ClipBoardManager.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -101,6 +103,7 @@
 				B10002 /* ClipboardItem.swift */,
 				B10017 /* FilterSettings.swift */,
 				B10026 /* MergeSettings.swift */,
+				B10028 /* CopyStats.swift */,
 				B10021 /* AppNavigation.swift */,
 			);
 			path = Models;
@@ -243,6 +246,7 @@
 				A10025 /* EmbeddingService.swift in Sources */,
 				A10026 /* MergeSettings.swift in Sources */,
 				A10027 /* ImageStitcher.swift in Sources */,
+				A10028 /* CopyStats.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -9,6 +9,7 @@ struct MainWindowView: View {
 
     @ObservedObject private var nav = AppNavigation.shared
     @ObservedObject private var toasts = ToastCenter.shared
+    @ObservedObject private var stats = CopyStatsStore.shared
 
     @AppStorage("fdaOnboardingDismissed") private var fdaOnboardingDismissed = false
 
@@ -77,6 +78,12 @@ struct MainWindowView: View {
                 vm.showExportPanel = false
             }
         }
+    }
+
+    private var headerSubtitle: String {
+        let base = "\(allItems.count) 条记录 · \(allItems.filter { $0.isFavorite }.count) 收藏"
+        guard stats.enabled else { return base }
+        return base + " · 今日 \(stats.todayCount()) 次"
     }
 
     private var backgroundDecoration: some View {
@@ -236,7 +243,7 @@ struct MainWindowView: View {
             VStack(alignment: .leading, spacing: 1) {
                 Text("剪贴板历史")
                     .font(.system(size: 18, weight: .bold))
-                Text("\(allItems.count) 条记录 · \(allItems.filter { $0.isFavorite }.count) 收藏")
+                Text(headerSubtitle)
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
             }

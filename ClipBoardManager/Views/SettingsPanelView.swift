@@ -18,6 +18,7 @@ struct SettingsPanelView: View {
         case shortcut = "快捷键"
         case filter = "过滤"
         case merge = "合并"
+        case stats = "统计"
         var id: Self { self }
     }
 
@@ -121,6 +122,8 @@ struct SettingsPanelView: View {
             FilterSection()
         case .merge:
             MergeSection()
+        case .stats:
+            StatsSection()
         }
     }
 }
@@ -549,6 +552,119 @@ private struct MergeSection: View {
         case .semicolon:     return "; "
         case .tab:           return "→"
         case .custom:        return ""
+        }
+    }
+}
+
+// MARK: - Stats
+
+private struct StatsSection: View {
+    @ObservedObject private var store = CopyStatsStore.shared
+
+    private static let weekdayFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "zh_CN")
+        f.dateFormat = "EEE"
+        return f
+    }()
+
+    private static let mdFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "zh_CN")
+        f.dateFormat = "M/d"
+        return f
+    }()
+
+    var body: some View {
+        VStack(spacing: 14) {
+            SettingCard(
+                title: "记录拷贝次数",
+                subtitle: "关闭后将不再统计新发生的复制行为，已有数据保留"
+            ) {
+                Toggle("", isOn: $store.enabled)
+                    .labelsHidden()
+                    .toggleStyle(.switch)
+            }
+
+            SettingCard(title: "汇总", subtitle: "基于本地剪贴板监听的复制次数") {
+                HStack(spacing: 14) {
+                    summaryTile(label: "今日", value: store.todayCount(), tint: .accentColor)
+                    summaryTile(label: "近 7 天", value: store.countLast(days: 7), tint: .purple)
+                    summaryTile(label: "近 30 天", value: store.countLast(days: 30), tint: .blue)
+                    summaryTile(label: "总计", value: store.totalAllTime, tint: .secondary)
+                }
+            }
+
+            SettingCard(title: "最近 14 天", subtitle: "每日复制次数趋势") {
+                chart
+            }
+
+            SettingCard(title: "清除统计", subtitle: "重置所有日期的计数，无法撤销") {
+                HStack {
+                    Spacer()
+                    Button(role: .destructive) {
+                        store.resetAll()
+                        ToastCenter.shared.show("已清除统计", systemImage: "chart.bar.xaxis", tint: .red)
+                    } label: {
+                        Label("清除所有统计", systemImage: "trash")
+                    }
+                }
+            }
+        }
+    }
+
+    private func summaryTile(label: String, value: Int, tint: Color) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(label)
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(.secondary)
+            Text("\(value)")
+                .font(.system(size: 22, weight: .bold, design: .rounded))
+                .monospacedDigit()
+                .foregroundStyle(tint)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .background(
+            RoundedRectangle(cornerRadius: 10)
+                .fill(tint.opacity(0.10))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 10)
+                .strokeBorder(tint.opacity(0.25), lineWidth: 0.5)
+        )
+    }
+
+    private var chart: some View {
+        let days = store.lastDays(14)
+        let maxCount = max(days.map(\.count).max() ?? 0, 1)
+        let calendar = Calendar.current
+
+        return VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .bottom, spacing: 6) {
+                ForEach(Array(days.enumerated()), id: \.offset) { _, entry in
+                    let isToday = calendar.isDateInToday(entry.date)
+                    VStack(spacing: 4) {
+                        Text("\(entry.count)")
+                            .font(.system(size: 9, weight: .medium, design: .monospaced))
+                            .foregroundStyle(entry.count > 0 ? .primary : .tertiary)
+                        ZStack(alignment: .bottom) {
+                            RoundedRectangle(cornerRadius: 3)
+                                .fill(.secondary.opacity(0.10))
+                                .frame(height: 64)
+                            RoundedRectangle(cornerRadius: 3)
+                                .fill(isToday ? Color.accentColor : Color.accentColor.opacity(0.55))
+                                .frame(height: max(CGFloat(entry.count) / CGFloat(maxCount) * 64, entry.count > 0 ? 4 : 0))
+                        }
+                        Text(Self.mdFormatter.string(from: entry.date))
+                            .font(.system(size: 9))
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+                    .frame(maxWidth: .infinity)
+                }
+            }
         }
     }
 }

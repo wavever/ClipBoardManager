@@ -82,6 +82,9 @@ class ClipboardViewModel: ObservableObject {
             context.insert(item)
             try? context.save()
 
+            // Bump today's copy counter (guarded by user's toggle).
+            CopyStatsStore.shared.recordCopy()
+
             // Compute embedding off the main thread, then write back.
             let embedContent = content
             Task { @MainActor in
