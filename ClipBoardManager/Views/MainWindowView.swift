@@ -12,6 +12,7 @@ struct MainWindowView: View {
     @ObservedObject private var stats = CopyStatsStore.shared
 
     @AppStorage("fdaOnboardingDismissed") private var fdaOnboardingDismissed = false
+    @AppStorage("pinnedCollapsed") private var pinnedCollapsed = false
 
     private var filteredItems: [ClipboardItem] {
         vm.filteredItems(allItems)
@@ -359,69 +360,29 @@ struct MainWindowView: View {
         }
     }
 
+    /// Split filtered items into a pinned section + the rest, but only when
+    /// the user is on the "全部" scope — the dedicated pinned scope already
+    /// shows them flat, and inside "收藏" a section header would be noise.
+    private var splitItems: (pinned: [ClipboardItem], others: [ClipboardItem]) {
+        let items = filteredItems
+        guard vm.selectedScope == .all else { return ([], items) }
+        return (items.filter { $0.isPinned }, items.filter { !$0.isPinned })
+    }
+
     private var cardList: some View {
-        ScrollView {
+        let split = splitItems
+        return ScrollView {
             LazyVStack(spacing: 8) {
-                ForEach(filteredItems) { item in
-                    ClipboardItemRow(
-                        item: item,
-                        isSelectionMode: vm.isSelectionMode,
-                        isSelected: vm.isSelected(item),
-                        onCopy: {
-                            vm.copyToClipboard(item)
-                            ToastCenter.shared.show("已复制")
-                        },
-                        onDelete: {
-                            vm.deleteItem(item, context: modelContext)
-                            ToastCenter.shared.show("已删除", systemImage: "trash.fill", tint: .red)
-                        },
-                        onToggleFavorite: {
-                            let willFavorite = !item.isFavorite
-                            vm.toggleFavorite(item)
-                            ToastCenter.shared.show(
-                                willFavorite ? "已添加到收藏" : "已取消收藏",
-                                systemImage: "star.fill",
-                                tint: .yellow
-                            )
-                        },
-                        onTogglePin: {
-                            let willPin = !item.isPinned
-                            vm.togglePin(item)
-                            ToastCenter.shared.show(
-                                willPin ? "已置顶" : "已取消置顶",
-                                systemImage: "pin.fill",
-                                tint: .orange
-                            )
-                        },
-                        onRevealInFinder: {
-                            if let url = item.resolvedFileURL {
-                                NSWorkspace.shared.activateFileViewerSelecting([url])
-                            }
-                        },
-                        onOpenFile: {
-                            if let url = item.resolvedFileURL {
-                                NSWorkspace.shared.open(url)
-                            }
-                        },
-                        onOpenURL: {
-                            openInBrowser(item.content)
+                if !split.pinned.isEmpty {
+                    pinnedHeader(count: split.pinned.count)
+                    if !pinnedCollapsed {
+                        ForEach(split.pinned) { item in
+                            cardRow(for: item)
                         }
-                    )
-                    .contextMenu { contextMenu(for: item) }
-                    // Mount only one tap gesture at a time. Having both a
-                    // single- and a double-tap on the same view makes SwiftUI
-                    // delay the single tap until it can rule out a second
-                    // click — that's the lag we were seeing on selection.
-                    .gesture(
-                        vm.isSelectionMode
-                            ? TapGesture(count: 1).onEnded {
-                                vm.toggleSelection(item)
-                            }
-                            : TapGesture(count: 2).onEnded {
-                                vm.copyToClipboard(item)
-                                ToastCenter.shared.show("已复制")
-                            }
-                    )
+                    }
+                }
+                ForEach(split.others) { item in
+                    cardRow(for: item)
                 }
             }
             .padding(.horizontal, 16)
@@ -429,6 +390,101 @@ struct MainWindowView: View {
             .padding(.bottom, vm.isSelectionMode ? 80 : 14)
         }
         .scrollContentBackground(.hidden)
+    }
+
+    @ViewBuilder
+    private func cardRow(for item: ClipboardItem) -> some View {
+        ClipboardItemRow(
+            item: item,
+            isSelectionMode: vm.isSelectionMode,
+            isSelected: vm.isSelected(item),
+            onCopy: {
+                vm.copyToClipboard(item)
+                ToastCenter.shared.show("已复制")
+            },
+            onDelete: {
+                vm.deleteItem(item, context: modelContext)
+                ToastCenter.shared.show("已删除", systemImage: "trash.fill", tint: .red)
+            },
+            onToggleFavorite: {
+                let willFavorite = !item.isFavorite
+                vm.toggleFavorite(item)
+                ToastCenter.shared.show(
+                    willFavorite ? "已添加到收藏" : "已取消收藏",
+                    systemImage: "star.fill",
+                    tint: .yellow
+                )
+            },
+            onTogglePin: {
+                let willPin = !item.isPinned
+                vm.togglePin(item)
+                ToastCenter.shared.show(
+                    willPin ? "已置顶" : "已取消置顶",
+                    systemImage: "pin.fill",
+                    tint: .orange
+                )
+            },
+            onRevealInFinder: {
+                if let url = item.resolvedFileURL {
+                    NSWorkspace.shared.activateFileViewerSelecting([url])
+                }
+            },
+            onOpenFile: {
+                if let url = item.resolvedFileURL {
+                    NSWorkspace.shared.open(url)
+                }
+            },
+            onOpenURL: {
+                openInBrowser(item.content)
+            }
+        )
+        .contextMenu { contextMenu(for: item) }
+        // Mount only one tap gesture at a time. Having both a single- and a
+        // double-tap on the same view makes SwiftUI delay the single tap
+        // until it can rule out a second click — that's the lag we were
+        // seeing on selection.
+        .gesture(
+            vm.isSelectionMode
+                ? TapGesture(count: 1).onEnded {
+                    vm.toggleSelection(item)
+                }
+                : TapGesture(count: 2).onEnded {
+                    vm.copyToClipboard(item)
+                    ToastCenter.shared.show("已复制")
+                }
+        )
+    }
+
+    private func pinnedHeader(count: Int) -> some View {
+        Button {
+            withAnimation(.easeOut(duration: 0.18)) { pinnedCollapsed.toggle() }
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: "pin.fill")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(.orange)
+                Text("置顶 \(count) 条")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
+                Spacer()
+                Image(systemName: pinnedCollapsed ? "chevron.right" : "chevron.down")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(.tertiary)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 7)
+            .background(
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .fill(.secondary.opacity(0.08))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .strokeBorder(.separator.opacity(0.25), lineWidth: 0.5)
+            )
+            .contentShape(RoundedRectangle(cornerRadius: 8))
+        }
+        .buttonStyle(.plain)
     }
 
     @ViewBuilder
