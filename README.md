@@ -39,6 +39,14 @@
 - 🗑️ **可选删除原条目** — 合并后保留或删除原始条目，设置中切换
 - 🔘 **批量操作** — 选择栏内提供全选 / 反选 / 清空 / 取消按钮
 
+### 统计
+- 📊 **每日复制计数** — 每次剪贴板捕获自动 +1，主窗口标题副栏显示「今日 N 次」
+- 🔘 **开关控制** — 设置 → 统计中开关，关闭后不再记录（已有数据保留）
+- 🔢 **多维汇总** — 今日 / 近 7 天 / 近 30 天 / 总计四宫格
+- 📈 **14 天柱状图** — 直观查看最近两周趋势，今日柱用强调色高亮
+- 🟩 **GitHub 风格热力图** — 过去 53 周活跃度网格，5 档色阶 + 月份标签 + hover 显示具体日期与次数
+- 🧹 **一键清除** — 重置所有日期的计数（无法撤销）
+
 ### 内容感知
 - 🏷️ **细粒度类型标签** — 文件按 UTType 显示精确类型（音频文件/视频文件/PDF文档/压缩文件/软件包/代码文件等）
 - 🔗 **链接一键打开** — URL 类型条目 hover 显示 safari 按钮，支持纯域名自动补 https
@@ -76,12 +84,13 @@ ClipBoardManager/
 │   ├── ClipboardItem.swift                # SwiftData 数据模型（含 embedding 字段）
 │   ├── FilterSettings.swift               # 过滤规则（排除应用/类型/关键词）
 │   ├── MergeSettings.swift                # 合并偏好（分隔符、图片拼接、删除原条目）
+│   ├── CopyStats.swift                    # 每日复制次数统计（含开关、热力图数据）
 │   └── AppNavigation.swift                # 导航状态管理
 ├── Views/
 │   ├── MainWindowView.swift               # 主窗口（toolbar + 列表 + 多选浮动栏 + toast）
 │   ├── ClipboardItemRow.swift             # 列表行视图（hover 操作栏 + 选择框）
 │   ├── MenuBarView.swift                  # 菜单栏弹出视图（含复制成功状态）
-│   ├── SettingsPanelView.swift            # 设置面板（通用/快捷键/过滤/合并）
+│   ├── SettingsPanelView.swift            # 设置面板（通用/快捷键/过滤/合并/统计）
 │   ├── ExportPanelView.swift              # JSON 导出筛选面板
 │   ├── FullDiskAccessOnboardingView.swift # 完全磁盘访问引导卡片
 │   ├── ToastView.swift                    # Toast 提示视图
