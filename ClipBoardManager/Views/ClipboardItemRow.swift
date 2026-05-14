@@ -3,6 +3,8 @@ import AppKit
 
 struct ClipboardItemRow: View {
     let item: ClipboardItem
+    var isSelectionMode: Bool = false
+    var isSelected: Bool = false
     var onCopy: () -> Void = {}
     var onDelete: () -> Void = {}
     var onToggleFavorite: () -> Void = {}
@@ -21,6 +23,13 @@ struct ClipboardItemRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
+            if isSelectionMode {
+                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                    .font(.system(size: 20, weight: .regular))
+                    .foregroundStyle(isSelected ? Color.accentColor : Color.secondary.opacity(0.6))
+                    .transition(.scale.combined(with: .opacity))
+            }
+
             ThumbnailView(item: item, size: 44, cornerRadius: 9)
                 .shadow(color: .black.opacity(0.12), radius: 3, y: 1)
 
@@ -59,7 +68,7 @@ struct ClipboardItemRow: View {
 
             Spacer(minLength: 12)
 
-            if isHovered {
+            if isHovered && !isSelectionMode {
                 actionBar
             }
         }
@@ -71,13 +80,13 @@ struct ClipboardItemRow: View {
                 RoundedRectangle(cornerRadius: 12)
                     .fill(.regularMaterial)
                     .opacity(isHovered ? 0.95 : 0.6)
-                if isHovered {
+                if isHovered || isSelected {
                     RoundedRectangle(cornerRadius: 12)
                         .fill(
                             LinearGradient(
                                 colors: [
-                                    Color.accentColor.opacity(0.10),
-                                    Color.accentColor.opacity(0.02)
+                                    Color.accentColor.opacity(isSelected ? 0.18 : 0.10),
+                                    Color.accentColor.opacity(isSelected ? 0.06 : 0.02)
                                 ],
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
@@ -88,7 +97,7 @@ struct ClipboardItemRow: View {
         )
         .overlay(
             RoundedRectangle(cornerRadius: 12)
-                .strokeBorder(borderColor, lineWidth: isHovered ? 1.5 : 1)
+                .strokeBorder(borderColor, lineWidth: (isHovered || isSelected) ? 1.5 : 1)
         )
         .shadow(
             color: isHovered ? Color.accentColor.opacity(0.18) : .black.opacity(0.04),
@@ -102,7 +111,7 @@ struct ClipboardItemRow: View {
     }
 
     private var borderColor: Color {
-        isHovered ? .accentColor : .secondary.opacity(0.18)
+        (isHovered || isSelected) ? .accentColor : .secondary.opacity(0.18)
     }
 
     private var displayTitle: String {

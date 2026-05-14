@@ -17,6 +17,7 @@ struct SettingsPanelView: View {
         case general = "通用"
         case shortcut = "快捷键"
         case filter = "过滤"
+        case merge = "合并"
         var id: Self { self }
     }
 
@@ -118,6 +119,8 @@ struct SettingsPanelView: View {
             ShortcutSection(globalHotkey: $globalHotkey)
         case .filter:
             FilterSection()
+        case .merge:
+            MergeSection()
         }
     }
 }
@@ -415,6 +418,137 @@ private struct FilterSection: View {
         }
         if added > 0 {
             ToastCenter.shared.show("已添加 \(added) 个应用")
+        }
+    }
+}
+
+// MARK: - Merge
+
+private struct MergeSection: View {
+    @ObservedObject private var store = MergeSettingsStore.shared
+
+    var body: some View {
+        VStack(spacing: 14) {
+            SettingCard(title: "合并后处理", subtitle: "开启后，合并将删除被选中的原条目；关闭则保留原条目") {
+                Toggle("", isOn: $store.deleteOriginals)
+                    .labelsHidden()
+                    .toggleStyle(.switch)
+            }
+
+            SettingCard(
+                title: "文本 / 链接 / 富文本 分隔符",
+                subtitle: "选择「自定义」时，可使用 \\n 表示换行、\\t 表示制表符"
+            ) {
+                separatorEditor(
+                    selection: $store.textSeparator,
+                    custom: $store.textCustomSeparator,
+                    placeholder: "例如：\\n--\\n"
+                )
+            }
+
+            SettingCard(
+                title: "文件 / 视频 分隔符",
+                subtitle: "用于合并多条文件路径"
+            ) {
+                separatorEditor(
+                    selection: $store.fileSeparator,
+                    custom: $store.fileCustomSeparator,
+                    placeholder: "例如：; "
+                )
+            }
+
+            SettingCard(
+                title: "图片合并",
+                subtitle: "启用后即可对多张图片进行拼接（纵向或横向）"
+            ) {
+                VStack(spacing: 12) {
+                    HStack {
+                        Text("启用图片合并")
+                            .font(.system(size: 13))
+                        Spacer()
+                        Toggle("", isOn: $store.enableImageMerge)
+                            .labelsHidden()
+                            .toggleStyle(.switch)
+                    }
+                    if store.enableImageMerge {
+                        Divider().opacity(0.4)
+                        HStack {
+                            Text("方向").font(.system(size: 13))
+                            Spacer()
+                            Picker("", selection: $store.imageDirection) {
+                                ForEach(ImageMergeDirection.allCases) { dir in
+                                    Label(dir.displayName, systemImage: dir.icon).tag(dir)
+                                }
+                            }
+                            .labelsHidden()
+                            .pickerStyle(.segmented)
+                            .frame(width: 220)
+                        }
+                        HStack {
+                            Text("背景色").font(.system(size: 13))
+                            Spacer()
+                            Picker("", selection: $store.imageBackground) {
+                                ForEach(ImageMergeBackground.allCases) { bg in
+                                    Text(bg.displayName).tag(bg)
+                                }
+                            }
+                            .labelsHidden()
+                            .pickerStyle(.segmented)
+                            .frame(width: 220)
+                        }
+                        HStack {
+                            Text("间距")
+                                .font(.system(size: 13))
+                            Spacer()
+                            Text("\(Int(store.imageSpacing)) px")
+                                .font(.system(size: 12, design: .monospaced))
+                                .foregroundStyle(.secondary)
+                                .frame(width: 50, alignment: .trailing)
+                            Slider(value: $store.imageSpacing, in: 0...64, step: 1)
+                                .frame(width: 180)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func separatorEditor(
+        selection: Binding<MergeSeparatorPreset>,
+        custom: Binding<String>,
+        placeholder: String
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Picker("", selection: selection) {
+                ForEach(MergeSeparatorPreset.allCases) { preset in
+                    Text(preset.displayName).tag(preset)
+                }
+            }
+            .labelsHidden()
+            .pickerStyle(.menu)
+            .frame(width: 160)
+
+            if selection.wrappedValue == .custom {
+                TextField(placeholder, text: custom)
+                    .textFieldStyle(.roundedBorder)
+            } else {
+                Text("预览：\(previewLabel(for: selection.wrappedValue))")
+                    .font(.system(size: 11, design: .monospaced))
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    private func previewLabel(for preset: MergeSeparatorPreset) -> String {
+        switch preset {
+        case .doubleNewline: return "↵↵ (空行)"
+        case .newline:       return "↵"
+        case .space:         return "␣"
+        case .comma:         return ", "
+        case .semicolon:     return "; "
+        case .tab:           return "→"
+        case .custom:        return ""
         }
     }
 }

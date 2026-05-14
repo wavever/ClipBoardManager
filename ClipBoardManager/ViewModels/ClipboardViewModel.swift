@@ -35,6 +35,8 @@ class ClipboardViewModel: ObservableObject {
     @Published var isMonitoring = true
     @Published var showExportPanel = false
     @Published var semanticSearchEnabled = false
+    @Published var isSelectionMode = false
+    @Published var selectedItemIDs: Set<UUID> = []
 
     /// Minimum cosine similarity for a clip to show up in semantic results.
     /// Apple's sentence embeddings produce mostly-positive scores for related
@@ -149,6 +151,145 @@ class ClipboardViewModel: ObservableObject {
 
     func togglePin(_ item: ClipboardItem) {
         item.isPinned.toggle()
+    }
+
+    // MARK: - Selection / Merge
+
+    func enterSelectionMode() {
+        isSelectionMode = true
+        selectedItemIDs.removeAll()
+    }
+
+    func exitSelectionMode() {
+        isSelectionMode = false
+        selectedItemIDs.removeAll()
+    }
+
+    func toggleSelection(_ item: ClipboardItem) {
+        if selectedItemIDs.contains(item.id) {
+            selectedItemIDs.remove(item.id)
+        } else {
+            selectedItemIDs.insert(item.id)
+        }
+    }
+
+    func isSelected(_ item: ClipboardItem) -> Bool {
+        selectedItemIDs.contains(item.id)
+    }
+
+    /// Items currently selected, in chronological order (oldest first).
+    func orderedSelectedItems(_ items: [ClipboardItem]) -> [ClipboardItem] {
+        items.filter { selectedItemIDs.contains($0.id) }
+            .sorted { $0.createdAt < $1.createdAt }
+    }
+
+    /// Merging requires ≥2 entries of the same type. Images are allowed only
+    /// when the user has explicitly enabled image stitching in settings.
+    func canMerge(selectedItems: [ClipboardItem]) -> Bool {
+        mergeBlockReason(selectedItems: selectedItems) == nil
+    }
+
+    /// Inspect the selection and report why merge is blocked (or nil if it's OK).
+    func mergeBlockReason(selectedItems: [ClipboardItem]) -> String? {
+        if selectedItems.count < 2 { return "至少选择两条" }
+        let types = Set(selectedItems.map { $0.itemType })
+        if types.count > 1 { return "仅支持同类型合并" }
+        if types.first == .image, !MergeSettingsStore.shared.enableImageMerge {
+            return "图片合并未启用（设置 → 合并）"
+        }
+        return nil
+    }
+
+    /// Concatenate (or stitch, for images) the selected items into a new
+    /// ClipboardItem using user-configured separators / direction. Original
+    /// entries are deleted when the "delete originals" preference is on.
+    @discardableResult
+    func mergeSelected(_ selectedItems: [ClipboardItem], context: ModelContext) -> ClipboardItem? {
+        guard canMerge(selectedItems: selectedItems) else { return nil }
+        let sorted = selectedItems.sorted { $0.createdAt < $1.createdAt }
+        guard let type = sorted.first?.itemType else { return nil }
+
+        let settings = MergeSettingsStore.shared
+        let sourceApps = Array(NSOrderedSet(array: sorted.map { $0.sourceApp }.filter { !$0.isEmpty }))
+            as? [String] ?? []
+        let sourceApp = sourceApps.count == 1 ? sourceApps[0] : "合并 (\(sorted.count) 条)"
+
+        let merged: ClipboardItem
+        switch type {
+        case .text, .rtf, .url:
+            let sep = settings.resolvedTextSeparator()
+            let mergedContent = sorted.map { $0.content }.joined(separator: sep)
+            merged = ClipboardItem(
+                type: type,
+                content: mergedContent,
+                sourceApp: sourceApp,
+                preview: String(mergedContent.prefix(200))
+            )
+        case .file, .video:
+            let sep = settings.resolvedFileSeparator()
+            let mergedContent = sorted.map { $0.content }.joined(separator: sep)
+            merged = ClipboardItem(
+                type: type,
+                content: mergedContent,
+                sourceApp: sourceApp,
+                preview: String(mergedContent.prefix(200))
+            )
+        case .image:
+            let images = sorted.compactMap { ImageStitcher.imageFromItem($0) }
+            guard images.count == sorted.count,
+                  let stitched = ImageStitcher.stitch(
+                    images,
+                    direction: settings.imageDirection,
+                    spacing: CGFloat(settings.imageSpacing),
+                    background: settings.imageBackground.nsColor
+                  )
+            else { return nil }
+            let content = "[图片 拼接 \(sorted.count) 张 · \(stitched.count / 1024)KB]"
+            merged = ClipboardItem(
+                type: .image,
+                content: content,
+                imageData: stitched,
+                sourceApp: sourceApp,
+                preview: content
+            )
+        }
+
+        context.insert(merged)
+
+        if settings.deleteOriginals {
+            for item in sorted { context.delete(item) }
+        }
+        try? context.save()
+
+        // Compute embedding asynchronously for text-like merges.
+        if type != .image {
+            let embedContent = merged.content
+            Task { @MainActor in
+                let emb = await EmbeddingService.shared.embedAsync(embedContent)
+                guard let emb else { return }
+                merged.embedding = emb.data
+                merged.embeddingLang = emb.language
+                try? context.save()
+            }
+        }
+
+        exitSelectionMode()
+        return merged
+    }
+
+    // MARK: - Bulk selection helpers
+
+    func selectAll(_ items: [ClipboardItem]) {
+        selectedItemIDs = Set(items.map(\.id))
+    }
+
+    func invertSelection(_ items: [ClipboardItem]) {
+        let allIDs = Set(items.map(\.id))
+        selectedItemIDs = allIDs.subtracting(selectedItemIDs)
+    }
+
+    func clearSelection() {
+        selectedItemIDs.removeAll()
     }
 
     // MARK: - Embedding backfill

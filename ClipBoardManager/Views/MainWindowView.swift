@@ -118,9 +118,101 @@ struct MainWindowView: View {
             if filteredItems.isEmpty {
                 emptyState
             } else {
-                cardList
+                ZStack(alignment: .bottom) {
+                    cardList
+                    if vm.isSelectionMode {
+                        selectionActionBar
+                            .padding(.horizontal, 16)
+                            .padding(.bottom, 14)
+                            .transition(.move(edge: .bottom).combined(with: .opacity))
+                    }
+                }
+                .animation(.easeOut(duration: 0.18), value: vm.isSelectionMode)
+                .animation(.easeOut(duration: 0.18), value: vm.selectedItemIDs)
             }
         }
+    }
+
+    private var selectionActionBar: some View {
+        let selected = vm.orderedSelectedItems(filteredItems)
+        let blockReason = vm.mergeBlockReason(selectedItems: selected)
+        let canMerge = blockReason == nil
+        let allSelected = !filteredItems.isEmpty && selected.count == filteredItems.count
+
+        return HStack(spacing: 10) {
+            Text("已选 \(selected.count)/\(filteredItems.count)")
+                .font(.system(size: 13, weight: .semibold))
+                .monospacedDigit()
+            if let reason = blockReason, !selected.isEmpty {
+                Text("·").foregroundStyle(.tertiary)
+                Text(reason)
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+
+            Spacer(minLength: 10)
+
+            SelectionBarButton(
+                systemName: allSelected ? "checkmark.circle.badge.xmark" : "checkmark.circle",
+                title: allSelected ? "清空" : "全选"
+            ) {
+                if allSelected { vm.clearSelection() }
+                else { vm.selectAll(filteredItems) }
+            }
+            SelectionBarButton(systemName: "arrow.triangle.2.circlepath", title: "反选") {
+                vm.invertSelection(filteredItems)
+            }
+
+            Divider().frame(height: 18).opacity(0.5)
+
+            Button {
+                vm.exitSelectionMode()
+            } label: {
+                Text("取消")
+                    .font(.system(size: 13, weight: .medium))
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 7)
+            }
+            .buttonStyle(.plain)
+            .background(
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(.secondary.opacity(0.15))
+            )
+
+            Button {
+                guard vm.mergeSelected(selected, context: modelContext) != nil else { return }
+                let suffix = MergeSettingsStore.shared.deleteOriginals ? "（已删除原条目）" : ""
+                ToastCenter.shared.show(
+                    "已合并 \(selected.count) 条\(suffix)",
+                    systemImage: "square.stack.3d.up.fill",
+                    tint: .accentColor
+                )
+            } label: {
+                Label("合并 \(selected.count) 条", systemImage: "square.stack.3d.up.fill")
+                    .font(.system(size: 13, weight: .semibold))
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 7)
+                    .foregroundStyle(.white)
+            }
+            .buttonStyle(.plain)
+            .background(
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(canMerge ? Color.accentColor : Color.accentColor.opacity(0.35))
+            )
+            .disabled(!canMerge)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 9)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(.regularMaterial)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .strokeBorder(.separator.opacity(0.4), lineWidth: 0.5)
+        )
+        .shadow(color: .black.opacity(0.15), radius: 12, y: 4)
     }
 
     private var header: some View {
@@ -221,6 +313,17 @@ struct MainWindowView: View {
 
             Spacer()
 
+            ToolbarIconButton(
+                systemName: vm.isSelectionMode ? "checkmark.circle.fill" : "checkmark.circle",
+                help: vm.isSelectionMode ? "退出选择" : "选择并合并"
+            ) {
+                if vm.isSelectionMode {
+                    vm.exitSelectionMode()
+                } else {
+                    vm.enterSelectionMode()
+                }
+            }
+
             ToolbarIconButton(systemName: "gearshape", help: "设置") {
                 nav.showSettings()
             }
@@ -308,6 +411,8 @@ struct MainWindowView: View {
                 ForEach(filteredItems) { item in
                     ClipboardItemRow(
                         item: item,
+                        isSelectionMode: vm.isSelectionMode,
+                        isSelected: vm.isSelected(item),
                         onCopy: {
                             vm.copyToClipboard(item)
                             ToastCenter.shared.show("已复制")
@@ -350,13 +455,20 @@ struct MainWindowView: View {
                     )
                     .contextMenu { contextMenu(for: item) }
                     .onTapGesture(count: 2) {
+                        guard !vm.isSelectionMode else { return }
                         vm.copyToClipboard(item)
                         ToastCenter.shared.show("已复制")
+                    }
+                    .onTapGesture {
+                        if vm.isSelectionMode {
+                            vm.toggleSelection(item)
+                        }
                     }
                 }
             }
             .padding(.horizontal, 16)
-            .padding(.vertical, 14)
+            .padding(.top, 14)
+            .padding(.bottom, vm.isSelectionMode ? 80 : 14)
         }
         .scrollContentBackground(.hidden)
     }
@@ -433,6 +545,34 @@ struct MainWindowView: View {
         if let url = URL(string: candidate) {
             NSWorkspace.shared.open(url)
         }
+    }
+}
+
+// MARK: - Selection bar button
+
+private struct SelectionBarButton: View {
+    let systemName: String
+    let title: String
+    let action: () -> Void
+
+    @State private var isHovered = false
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 5) {
+                Image(systemName: systemName).font(.system(size: 11, weight: .semibold))
+                Text(title).font(.system(size: 12, weight: .medium))
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .foregroundStyle(isHovered ? Color.primary : Color.secondary)
+            .background(
+                RoundedRectangle(cornerRadius: 7)
+                    .fill(isHovered ? Color.secondary.opacity(0.18) : Color.clear)
+            )
+        }
+        .buttonStyle(.plain)
+        .onHover { isHovered = $0 }
     }
 }
 
