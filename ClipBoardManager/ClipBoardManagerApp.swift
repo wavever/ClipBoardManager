@@ -8,6 +8,7 @@ struct ClipBoardManagerApp: App {
 
     @AppStorage("showInDock") private var showInDock = true
     @AppStorage("menuBarIcon") private var menuBarIcon = true
+    @AppStorage("hideFromCapture") private var hideFromCapture = false
 
     var body: some Scene {
         WindowGroup("ClipBoardManager", id: "main") {
@@ -16,9 +17,13 @@ struct ClipBoardManagerApp: App {
                 .modelContainer(for: ClipboardItem.self)
                 .onAppear {
                     applyActivationPolicy()
+                    applyCaptureProtection()
                 }
                 .onChange(of: showInDock) { _, _ in
                     applyActivationPolicy()
+                }
+                .onChange(of: hideFromCapture) { _, _ in
+                    applyCaptureProtection()
                 }
         }
         .defaultSize(width: 1000, height: 640)
@@ -29,6 +34,16 @@ struct ClipBoardManagerApp: App {
                 .modelContainer(for: ClipboardItem.self)
         }
         .menuBarExtraStyle(.window)
+    }
+
+    /// Toggle `NSWindow.sharingType` on every app window so the clipboard
+    /// history doesn't leak into screen recordings or shared screens when the
+    /// user enables the privacy switch.
+    private func applyCaptureProtection() {
+        let type: NSWindow.SharingType = hideFromCapture ? .none : .readOnly
+        for window in NSApp.windows {
+            window.sharingType = type
+        }
     }
 
     private func applyActivationPolicy() {

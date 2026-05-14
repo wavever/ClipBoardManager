@@ -13,6 +13,7 @@ struct SettingsPanelView: View {
     @AppStorage("launchAtLogin") private var launchAtLogin = false
     @AppStorage("showInDock") private var showInDock = true
     @AppStorage("menuBarIcon") private var menuBarIcon = true
+    @AppStorage("hideFromCapture") private var hideFromCapture = false
 
     enum Section: String, CaseIterable, Identifiable {
         case general = "通用"
@@ -125,7 +126,8 @@ struct SettingsPanelView: View {
                 pollInterval: $pollInterval,
                 launchAtLogin: $launchAtLogin,
                 showInDock: $showInDock,
-                menuBarIcon: $menuBarIcon
+                menuBarIcon: $menuBarIcon,
+                hideFromCapture: $hideFromCapture
             )
         case .shortcut:
             ShortcutSection(globalHotkey: $globalHotkey)
@@ -186,6 +188,7 @@ private struct GeneralSection: View {
     @Binding var launchAtLogin: Bool
     @Binding var showInDock: Bool
     @Binding var menuBarIcon: Bool
+    @Binding var hideFromCapture: Bool
 
     @AppStorage("fdaOnboardingDismissed") private var fdaOnboardingDismissed = false
     @ObservedObject private var nav = AppNavigation.shared
@@ -216,6 +219,12 @@ private struct GeneralSection: View {
             }
             SettingCard(title: "显示菜单栏图标", subtitle: "在系统菜单栏右侧展示快捷入口") {
                 Toggle("", isOn: $menuBarIcon).labelsHidden().toggleStyle(.switch)
+            }
+            SettingCard(
+                title: "屏幕录制中隐藏",
+                subtitle: "开启后剪贴板窗口不会出现在录屏、屏幕共享或截图中"
+            ) {
+                Toggle("", isOn: $hideFromCapture).labelsHidden().toggleStyle(.switch)
             }
             SettingCard(title: "最大记录数", subtitle: "超过该上限时会自动清理最旧的内容") {
                 HStack {
