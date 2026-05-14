@@ -45,12 +45,46 @@ class ClipboardViewModel: ObservableObject {
     private let semanticThreshold: Float = 0.25
 
     let monitor = ClipboardMonitor()
+    private var retentionTimer: Timer?
     
     var filteredTypeDisplayName: String {
         selectedType?.displayName ?? "全部"
     }
     
+    /// Drop entries that are older than the per-type retention setting. Pinned
+    /// and favorited items are always exempt — users deliberately marked them.
+    func applyRetentionCleanup(context: ModelContext) {
+        let policy = FilterSettingsStore.shared.retentionByType
+        guard !policy.isEmpty else { return }
+        let descriptor = FetchDescriptor<ClipboardItem>()
+        guard let items = try? context.fetch(descriptor) else { return }
+        let now = Date()
+        var deleted = 0
+        for item in items where !item.isPinned && !item.isFavorite {
+            let days = FilterSettingsStore.shared.retentionDays(for: item.itemType)
+            guard days > 0 else { continue }
+            let cutoff = now.addingTimeInterval(-Double(days) * 86_400)
+            if item.createdAt < cutoff {
+                context.delete(item)
+                deleted += 1
+            }
+        }
+        if deleted > 0 { try? context.save() }
+    }
+
+    private func scheduleRetentionTimer(context: ModelContext) {
+        retentionTimer?.invalidate()
+        retentionTimer = Timer.scheduledTimer(withTimeInterval: 3_600, repeats: true) { [weak self] _ in
+            Task { @MainActor in
+                self?.applyRetentionCleanup(context: context)
+            }
+        }
+    }
+
     func startMonitoring(context: ModelContext) {
+        applyRetentionCleanup(context: context)
+        scheduleRetentionTimer(context: context)
+
         monitor.startMonitoring { [weak self] type, rawContent, imageData, fileURL, sourceApp, bundleId in
             guard self != nil else { return }
 
@@ -126,6 +160,8 @@ class ClipboardViewModel: ObservableObject {
     
     func stopMonitoring() {
         monitor.stopMonitoring()
+        retentionTimer?.invalidate()
+        retentionTimer = nil
     }
     
     func copyToClipboard(_ item: ClipboardItem) {

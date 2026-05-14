@@ -35,6 +35,8 @@ final class FilterSettingsStore: ObservableObject {
     @Published var excludedTypes: Set<ClipboardItemType> = [] { didSet { save() } }
     @Published var textFilters: [TextFilterRule] = [] { didSet { save() } }
     @Published var stripURLTracking: Bool = true { didSet { save() } }
+    /// Per-type retention in days. 0 (or missing) means "keep forever".
+    @Published var retentionByType: [String: Int] = [:] { didSet { save() } }
 
     private let key = "filterSettings.v1"
     private var loading = false
@@ -48,6 +50,7 @@ final class FilterSettingsStore: ObservableObject {
         var excludedTypes: [String] = []
         var textFilters: [TextFilterRule] = []
         var stripURLTracking: Bool? = true
+        var retentionByType: [String: Int]? = nil
     }
 
     private func load() {
@@ -61,6 +64,7 @@ final class FilterSettingsStore: ObservableObject {
         excludedTypes = Set(state.excludedTypes.compactMap { ClipboardItemType(rawValue: $0) })
         textFilters = state.textFilters
         stripURLTracking = state.stripURLTracking ?? true
+        retentionByType = state.retentionByType ?? [:]
     }
 
     private func save() {
@@ -69,10 +73,24 @@ final class FilterSettingsStore: ObservableObject {
             excludedApps: excludedApps,
             excludedTypes: excludedTypes.map { $0.rawValue }.sorted(),
             textFilters: textFilters,
-            stripURLTracking: stripURLTracking
+            stripURLTracking: stripURLTracking,
+            retentionByType: retentionByType.isEmpty ? nil : retentionByType
         )
         if let data = try? JSONEncoder().encode(state) {
             UserDefaults.standard.set(data, forKey: key)
+        }
+    }
+
+    /// Retention window in days for `type`. `0` means "keep forever".
+    func retentionDays(for type: ClipboardItemType) -> Int {
+        retentionByType[type.rawValue] ?? 0
+    }
+
+    func setRetentionDays(_ days: Int, for type: ClipboardItemType) {
+        if days <= 0 {
+            retentionByType.removeValue(forKey: type.rawValue)
+        } else {
+            retentionByType[type.rawValue] = days
         }
     }
 

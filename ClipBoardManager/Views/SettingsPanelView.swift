@@ -603,6 +603,12 @@ private struct DataSection: View {
     @EnvironmentObject var vm: ClipboardViewModel
     @Environment(\.modelContext) private var modelContext
     @ObservedObject private var stats = CopyStatsStore.shared
+    @ObservedObject private var filters = FilterSettingsStore.shared
+
+    private let retentionOptions: [(value: Int, label: String)] = [
+        (0, "永久"), (1, "1 天"), (7, "7 天"),
+        (30, "30 天"), (90, "90 天"), (180, "180 天")
+    ]
 
     var body: some View {
         VStack(spacing: 14) {
@@ -613,6 +619,40 @@ private struct DataSection: View {
                 Toggle("", isOn: $stats.enabled)
                     .labelsHidden()
                     .toggleStyle(.switch)
+            }
+
+            SettingCard(
+                title: "自动清理",
+                subtitle: "按类型设定保留时长，超期后自动删除。置顶 / 收藏 的条目永远保留"
+            ) {
+                VStack(spacing: 6) {
+                    ForEach(ClipboardItemType.allCases, id: \.self) { type in
+                        HStack {
+                            Label(type.displayName, systemImage: type.icon)
+                                .font(.system(size: 13))
+                            Spacer()
+                            Picker("", selection: retentionBinding(for: type)) {
+                                ForEach(retentionOptions, id: \.value) { opt in
+                                    Text(opt.label).tag(opt.value)
+                                }
+                            }
+                            .labelsHidden()
+                            .pickerStyle(.menu)
+                            .frame(width: 96)
+                        }
+                        .padding(.vertical, 3)
+                    }
+                    HStack {
+                        Spacer()
+                        Button {
+                            vm.applyRetentionCleanup(context: modelContext)
+                            ToastCenter.shared.show("已按规则清理", systemImage: "wand.and.sparkles", tint: .accentColor)
+                        } label: {
+                            Label("立即清理", systemImage: "wand.and.sparkles")
+                        }
+                    }
+                    .padding(.top, 4)
+                }
             }
 
             SettingCard(
@@ -659,5 +699,12 @@ private struct DataSection: View {
                 }
             }
         }
+    }
+
+    private func retentionBinding(for type: ClipboardItemType) -> Binding<Int> {
+        Binding(
+            get: { filters.retentionDays(for: type) },
+            set: { filters.setRetentionDays($0, for: type) }
+        )
     }
 }
