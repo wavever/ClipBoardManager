@@ -23,9 +23,11 @@ jobs:
         run: |
           xcodebuild \
             -project ClipBoardManager.xcodeproj \
-            -target ClipBoardManager \
+            -scheme ClipBoardManager \
             -configuration Debug \
             -destination 'platform=macOS' \
+            -derivedDataPath build \
+            -skipMacroValidation \
             CODE_SIGN_IDENTITY="-" \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO \
