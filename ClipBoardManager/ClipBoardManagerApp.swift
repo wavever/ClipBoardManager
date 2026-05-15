@@ -2,6 +2,16 @@ import SwiftUI
 import SwiftData
 
 @main
+struct AppLauncher {
+    static func main() {
+        if CommandLine.arguments.dropFirst().contains("--mcp") {
+            MCPServer.run()
+            return
+        }
+        ClipBoardManagerApp.main()
+    }
+}
+
 struct ClipBoardManagerApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @StateObject private var clipboardVM = ClipboardViewModel()
