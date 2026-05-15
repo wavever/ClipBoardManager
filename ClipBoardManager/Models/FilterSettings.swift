@@ -37,6 +37,10 @@ final class FilterSettingsStore: ObservableObject {
     @Published var stripURLTracking: Bool = true { didSet { save() } }
     /// Per-type retention in days. 0 (or missing) means "keep forever".
     @Published var retentionByType: [String: Int] = [:] { didSet { save() } }
+    /// When true, `deleteItem` soft-deletes into trash; otherwise it's a hard delete.
+    @Published var trashEnabled: Bool = true { didSet { save() } }
+    /// How long trashed items live before being purged. 0 means "keep forever".
+    @Published var trashRetentionDays: Int = 7 { didSet { save() } }
 
     private let key = "filterSettings.v1"
     private var loading = false
@@ -51,6 +55,8 @@ final class FilterSettingsStore: ObservableObject {
         var textFilters: [TextFilterRule] = []
         var stripURLTracking: Bool? = true
         var retentionByType: [String: Int]? = nil
+        var trashEnabled: Bool? = true
+        var trashRetentionDays: Int? = 7
     }
 
     private func load() {
@@ -65,6 +71,8 @@ final class FilterSettingsStore: ObservableObject {
         textFilters = state.textFilters
         stripURLTracking = state.stripURLTracking ?? true
         retentionByType = state.retentionByType ?? [:]
+        trashEnabled = state.trashEnabled ?? true
+        trashRetentionDays = state.trashRetentionDays ?? 7
     }
 
     private func save() {
@@ -74,7 +82,9 @@ final class FilterSettingsStore: ObservableObject {
             excludedTypes: excludedTypes.map { $0.rawValue }.sorted(),
             textFilters: textFilters,
             stripURLTracking: stripURLTracking,
-            retentionByType: retentionByType.isEmpty ? nil : retentionByType
+            retentionByType: retentionByType.isEmpty ? nil : retentionByType,
+            trashEnabled: trashEnabled,
+            trashRetentionDays: trashRetentionDays
         )
         if let data = try? JSONEncoder().encode(state) {
             UserDefaults.standard.set(data, forKey: key)

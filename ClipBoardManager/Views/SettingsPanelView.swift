@@ -610,8 +610,45 @@ private struct DataSection: View {
         (30, "30 天"), (90, "90 天"), (180, "180 天")
     ]
 
+    private let trashRetentionOptions: [(value: Int, label: String)] = [
+        (1, "1 天"), (3, "3 天"), (7, "7 天"),
+        (14, "14 天"), (30, "30 天"), (0, "永久")
+    ]
+
     var body: some View {
         VStack(spacing: 14) {
+            SettingCard(
+                title: "启用垃圾桶",
+                subtitle: "开启后，删除的条目会先进入垃圾桶，便于反悔。关闭则直接彻底删除"
+            ) {
+                VStack(spacing: 10) {
+                    HStack {
+                        Text("启用")
+                            .font(.system(size: 13))
+                        Spacer()
+                        Toggle("", isOn: $filters.trashEnabled)
+                            .labelsHidden()
+                            .toggleStyle(.switch)
+                    }
+                    if filters.trashEnabled {
+                        Divider().opacity(0.4)
+                        HStack {
+                            Text("自动清理")
+                                .font(.system(size: 13))
+                            Spacer()
+                            Picker("", selection: $filters.trashRetentionDays) {
+                                ForEach(trashRetentionOptions, id: \.value) { opt in
+                                    Text(opt.label).tag(opt.value)
+                                }
+                            }
+                            .labelsHidden()
+                            .pickerStyle(.menu)
+                            .frame(width: 110)
+                        }
+                    }
+                }
+            }
+
             SettingCard(
                 title: "记录拷贝次数",
                 subtitle: "关闭后将不再统计新发生的复制行为，已有数据保留"

@@ -47,6 +47,9 @@ final class ClipboardItem {
     var preview: String?
     var embedding: Data?
     var embeddingLang: String?
+    /// Soft-delete marker. Nil means the entry is alive in history; a date
+    /// means the user deleted it on that date and it's currently in trash.
+    var deletedAt: Date?
 
     init(type: ClipboardItemType, content: String, imageData: Data? = nil, fileURL: String? = nil, sourceApp: String = "", preview: String? = nil) {
         self.id = UUID()
@@ -61,6 +64,7 @@ final class ClipboardItem {
         self.preview = preview
         self.embedding = nil
         self.embeddingLang = nil
+        self.deletedAt = nil
     }
     
     var itemType: ClipboardItemType {

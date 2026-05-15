@@ -36,6 +36,9 @@ struct MainWindowView: View {
                 case .stats:
                     StatsPanelView()
                         .transition(.move(edge: .trailing).combined(with: .opacity))
+                case .trash:
+                    TrashPanelView()
+                        .transition(.move(edge: .trailing).combined(with: .opacity))
                 }
             }
             .animation(.easeOut(duration: 0.22), value: nav.screen)
@@ -315,6 +318,10 @@ struct MainWindowView: View {
                 } else {
                     vm.enterSelectionMode()
                 }
+            }
+
+            ToolbarIconButton(systemName: "trash", help: "垃圾桶") {
+                nav.showTrash()
             }
 
             ToolbarIconButton(systemName: "chart.bar.xaxis", help: "活跃统计") {

@@ -51,25 +51,54 @@ class ClipboardViewModel: ObservableObject {
         selectedType?.displayName ?? "全部"
     }
     
-    /// Drop entries that are older than the per-type retention setting. Pinned
-    /// and favorited items are always exempt — users deliberately marked them.
+    /// Drop entries that are older than the per-type retention setting and
+    /// hard-delete trashed items past their grace period. Pinned and favorited
+    /// items are exempt from per-type retention — users marked them on purpose.
     func applyRetentionCleanup(context: ModelContext) {
-        let policy = FilterSettingsStore.shared.retentionByType
-        guard !policy.isEmpty else { return }
+        let filters = FilterSettingsStore.shared
         let descriptor = FetchDescriptor<ClipboardItem>()
         guard let items = try? context.fetch(descriptor) else { return }
         let now = Date()
         var deleted = 0
-        for item in items where !item.isPinned && !item.isFavorite {
-            let days = FilterSettingsStore.shared.retentionDays(for: item.itemType)
-            guard days > 0 else { continue }
-            let cutoff = now.addingTimeInterval(-Double(days) * 86_400)
-            if item.createdAt < cutoff {
-                context.delete(item)
-                deleted += 1
+
+        // 1) Purge expired trash.
+        let trashDays = filters.trashRetentionDays
+        if trashDays > 0 {
+            let trashCutoff = now.addingTimeInterval(-Double(trashDays) * 86_400)
+            for item in items {
+                guard let deletedAt = item.deletedAt else { continue }
+                if deletedAt < trashCutoff {
+                    context.delete(item)
+                    deleted += 1
+                }
             }
         }
-        if deleted > 0 { try? context.save() }
+
+        // 2) Per-type retention on live history.
+        if !filters.retentionByType.isEmpty {
+            for item in items where item.deletedAt == nil && !item.isPinned && !item.isFavorite {
+                let days = filters.retentionDays(for: item.itemType)
+                guard days > 0 else { continue }
+                let cutoff = now.addingTimeInterval(-Double(days) * 86_400)
+                if item.createdAt < cutoff {
+                    if filters.trashEnabled {
+                        // Move into trash so user has a chance to recover.
+                        item.deletedAt = now
+                    } else {
+                        context.delete(item)
+                        deleted += 1
+                    }
+                }
+            }
+        }
+
+        if deleted > 0 { try? context.save() } else { try? context.save() }
+    }
+
+    /// All trashed items, newest deletion first.
+    func trashedItems(_ items: [ClipboardItem]) -> [ClipboardItem] {
+        items.filter { $0.deletedAt != nil }
+             .sorted { ($0.deletedAt ?? .distantPast) > ($1.deletedAt ?? .distantPast) }
     }
 
     private func scheduleRetentionTimer(context: ModelContext) {
@@ -226,10 +255,41 @@ class ClipboardViewModel: ObservableObject {
     }
 
     func deleteItem(_ item: ClipboardItem, context: ModelContext) {
+        if FilterSettingsStore.shared.trashEnabled {
+            // Soft-delete: keep the row around until trash retention expires.
+            item.deletedAt = Date()
+            try? context.save()
+        } else {
+            context.delete(item)
+            try? context.save()
+        }
+    }
+
+    /// Move an item back out of the trash. No-op for items that aren't trashed.
+    func restoreItem(_ item: ClipboardItem, context: ModelContext) {
+        guard item.deletedAt != nil else { return }
+        item.deletedAt = nil
+        item.createdAt = Date()
+        try? context.save()
+    }
+
+    /// Hard-delete a single trashed item.
+    func purgeItem(_ item: ClipboardItem, context: ModelContext) {
         context.delete(item)
         try? context.save()
     }
-    
+
+    /// Drop every trashed entry. The active history is untouched.
+    func emptyTrash(context: ModelContext) {
+        let descriptor = FetchDescriptor<ClipboardItem>(
+            predicate: #Predicate { $0.deletedAt != nil }
+        )
+        if let trashed = try? context.fetch(descriptor) {
+            for item in trashed { context.delete(item) }
+            try? context.save()
+        }
+    }
+
     func deleteAll(context: ModelContext) {
         let descriptor = FetchDescriptor<ClipboardItem>()
         if let all = try? context.fetch(descriptor) {
@@ -428,7 +488,9 @@ class ClipboardViewModel: ObservableObject {
     // MARK: - Filtering
 
     func filteredItems(_ items: [ClipboardItem]) -> [ClipboardItem] {
-        var result = items
+        // Active history never shows soft-deleted entries — those live in
+        // the trash screen until they're restored or expire.
+        var result = items.filter { $0.deletedAt == nil }
 
         switch selectedScope {
         case .all: break
