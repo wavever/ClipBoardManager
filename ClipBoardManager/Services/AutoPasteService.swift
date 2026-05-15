@@ -7,7 +7,7 @@ import ApplicationServices
 @MainActor
 enum AutoPasteService {
     /// `true` when the app already has Accessibility permission.
-    static var isTrusted: Bool {
+    nonisolated static var isTrusted: Bool {
         AXIsProcessTrusted()
     }
 
