@@ -52,8 +52,15 @@ struct ClipboardItemRow: View {
                 }
 
                 HStack(spacing: 8) {
-                    Text(item.sourceApp)
-                        .lineLimit(1)
+                    HStack(spacing: 4) {
+                        if item.sourceApp == "通用剪贴板" {
+                            Image(systemName: "iphone.and.arrow.forward")
+                                .font(.system(size: 10, weight: .semibold))
+                                .foregroundStyle(Color.accentColor)
+                        }
+                        Text(item.sourceApp)
+                            .lineLimit(1)
+                    }
                     rowDot
                     Text(item.formattedDate)
                         .monospacedDigit()

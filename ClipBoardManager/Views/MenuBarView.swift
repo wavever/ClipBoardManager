@@ -175,10 +175,17 @@ struct MenuBarRow: View {
                         .font(.system(size: 12))
                         .lineLimit(1)
                 }
-                Text("\(item.sourceApp) · \(item.formattedDate)")
-                    .font(.system(size: 10))
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
+                HStack(spacing: 4) {
+                    if item.sourceApp == "通用剪贴板" {
+                        Image(systemName: "iphone.and.arrow.forward")
+                            .font(.system(size: 9, weight: .semibold))
+                            .foregroundStyle(Color.accentColor)
+                    }
+                    Text("\(item.sourceApp) · \(item.formattedDate)")
+                        .font(.system(size: 10))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
             }
 
             Spacer(minLength: 6)

@@ -19,18 +19,28 @@ class ClipboardMonitor: ObservableObject {
             self?.checkForChanges()
         }
     }
-    
+
     func stopMonitoring() {
         timer?.invalidate()
         timer = nil
     }
-    
+
     private func checkForChanges() {
         let currentChangeCount = pasteboard.changeCount
         guard currentChangeCount != lastChangeCount else { return }
         lastChangeCount = currentChangeCount
 
-        let (sourceApp, bundleId) = getActiveApp()
+        let (sourceApp, bundleId): (String, String)
+        if isRemoteClipboard() {
+            // Universal Clipboard delivery (iPhone/iPad/other Mac via
+            // Handoff). The "frontmost app" at this instant is whatever the
+            // user happens to be focused on locally, which is misleading —
+            // tag it as remote so the row and toast can show that.
+            sourceApp = "通用剪贴板"
+            bundleId = ClipboardMonitor.remoteBundleID
+        } else {
+            (sourceApp, bundleId) = getActiveApp()
+        }
 
         // 1. 文件 URL 优先：从 Finder 复制时同时存在 file URL 与 string，先认 file URL。
         let fileOnlyOptions: [NSPasteboard.ReadingOptionKey: Any] = [.urlReadingFileURLsOnly: true]
@@ -75,14 +85,27 @@ class ClipboardMonitor: ObservableObject {
             return
         }
     }
-    
+
     private func getActiveApp() -> (name: String, bundleId: String) {
         if let app = NSWorkspace.shared.frontmostApplication {
             return (app.localizedName ?? "未知", app.bundleIdentifier ?? "")
         }
         return ("未知", "")
     }
-    
+
+    /// Sentinel bundle id used for clips delivered by macOS Universal
+    /// Clipboard. Anything in the UI that wants to render a special badge
+    /// for those clips can compare against this string.
+    static let remoteBundleID = "com.apple.universalclipboard"
+
+    /// `true` when the current pasteboard contents were delivered by
+    /// Universal Clipboard / Handoff. macOS publishes an undocumented but
+    /// stable type marker on the pasteboard in that case.
+    private func isRemoteClipboard() -> Bool {
+        let marker = NSPasteboard.PasteboardType("com.apple.is-remote-clipboard")
+        return pasteboard.types?.contains(marker) ?? false
+    }
+
     deinit {
         stopMonitoring()
     }
