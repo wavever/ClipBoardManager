@@ -146,6 +146,10 @@ class ClipboardViewModel: ObservableObject {
                 mostRecent.createdAt = Date()
                 try? context.save()
                 CopyStatsStore.shared.recordCopy()
+                DynamicIslandController.shared.flash(
+                    itemIcon: type.icon,
+                    preview: String(content.prefix(60))
+                )
                 return
             }
             
@@ -162,6 +166,12 @@ class ClipboardViewModel: ObservableObject {
 
             // Bump today's copy counter (guarded by user's toggle).
             CopyStatsStore.shared.recordCopy()
+
+            // Notify the Dynamic Island so it can briefly toast the new clip.
+            DynamicIslandController.shared.flash(
+                itemIcon: type.icon,
+                preview: String(content.prefix(60))
+            )
 
             // Compute embedding off the main thread, then write back.
             let embedContent = content
@@ -222,6 +232,8 @@ class ClipboardViewModel: ObservableObject {
                 pasteboard.writeObjects([url as NSURL])
             }
         }
+
+        ClipboardMonitor.markInternalWrite()
     }
     
     /// Hand-authored entry created via the snippet editor. Lives alongside

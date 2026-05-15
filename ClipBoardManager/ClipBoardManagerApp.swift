@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import KeyboardShortcuts
 
 @main
 struct AppLauncher {
@@ -24,7 +25,7 @@ struct ClipBoardManagerApp: App {
         WindowGroup("ClipBoardManager", id: "main") {
             MainWindowView()
                 .environmentObject(clipboardVM)
-                .modelContainer(for: ClipboardItem.self)
+                .modelContainer(AppContainer.shared)
                 .onAppear {
                     applyActivationPolicy()
                     applyCaptureProtection()
@@ -41,7 +42,7 @@ struct ClipBoardManagerApp: App {
         MenuBarExtra("ClipBoard", systemImage: "doc.on.clipboard", isInserted: $menuBarIcon) {
             MenuBarView()
                 .environmentObject(clipboardVM)
-                .modelContainer(for: ClipboardItem.self)
+                .modelContainer(AppContainer.shared)
         }
         .menuBarExtraStyle(.window)
     }
@@ -76,11 +77,12 @@ struct ClipBoardManagerApp: App {
 }
 
 class AppDelegate: NSObject, NSApplicationDelegate {
-    private var hotKeyMonitor: Any?
-
     func applicationDidFinishLaunching(_ notification: Notification) {
         applyInitialActivationPolicy()
-        setupGlobalHotKey()
+        setupGlobalHotKeys()
+        DynamicIslandController.shared.setEnabled(
+            DynamicIslandController.shared.isEnabled
+        )
     }
 
     private func applyInitialActivationPolicy() {
@@ -92,22 +94,25 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.setActivationPolicy(showInDock ? .regular : .accessory)
     }
 
-    private func setupGlobalHotKey() {
-        hotKeyMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { event in
-            let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
-            if flags == [.command, .shift] && event.keyCode == 9 { // V key
-                NSApp.activate(ignoringOtherApps: true)
-                for window in NSApp.windows where window.title == "ClipBoardManager" {
-                    window.makeKeyAndOrderFront(nil)
-                    break
-                }
+    private func setupGlobalHotKeys() {
+        KeyboardShortcuts.onKeyUp(for: .openMainWindow) {
+            Task { @MainActor in
+                AppDelegate.openMainWindow()
+            }
+        }
+        KeyboardShortcuts.onKeyUp(for: .openQuickPaste) {
+            Task { @MainActor in
+                QuickPasteController.shared.toggle()
             }
         }
     }
 
-    deinit {
-        if let monitor = hotKeyMonitor {
-            NSEvent.removeMonitor(monitor)
+    @MainActor
+    private static func openMainWindow() {
+        NSApp.activate(ignoringOtherApps: true)
+        for window in NSApp.windows where window.title == "ClipBoardManager" {
+            window.makeKeyAndOrderFront(nil)
+            return
         }
     }
 }

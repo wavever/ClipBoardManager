@@ -9,6 +9,23 @@ class ClipboardMonitor: ObservableObject {
     private let pasteboard = NSPasteboard.general
     private var onNewContent: Callback?
 
+    /// `changeCount` values produced by our own writes (re-copy from history,
+    /// quick-paste, merge, …). When the poller sees one of these, it should
+    /// skip processing — otherwise the existing item gets its `createdAt`
+    /// bumped to "now" and visibly jumps to the top of the list.
+    private static var internalChangeCounts: Set<Int> = []
+
+    /// Call this **right after** writing to `NSPasteboard.general` from within
+    /// the app so the monitor knows to ignore the resulting change-count tick.
+    static func markInternalWrite() {
+        internalChangeCounts.insert(NSPasteboard.general.changeCount)
+        // Bound the buffer so a long-running session can't leak ints forever
+        // if some write somehow never gets observed by the poller.
+        if internalChangeCounts.count > 32 {
+            internalChangeCounts.removeAll()
+        }
+    }
+
     init() {
         lastChangeCount = pasteboard.changeCount
     }
@@ -19,16 +36,22 @@ class ClipboardMonitor: ObservableObject {
             self?.checkForChanges()
         }
     }
-
+    
     func stopMonitoring() {
         timer?.invalidate()
         timer = nil
     }
-
+    
     private func checkForChanges() {
         let currentChangeCount = pasteboard.changeCount
         guard currentChangeCount != lastChangeCount else { return }
         lastChangeCount = currentChangeCount
+
+        // Skip ticks we caused ourselves — re-copying a history item should
+        // leave its position untouched, not boost it to the top.
+        if Self.internalChangeCounts.remove(currentChangeCount) != nil {
+            return
+        }
 
         let (sourceApp, bundleId): (String, String)
         if isRemoteClipboard() {
@@ -85,7 +108,7 @@ class ClipboardMonitor: ObservableObject {
             return
         }
     }
-
+    
     private func getActiveApp() -> (name: String, bundleId: String) {
         if let app = NSWorkspace.shared.frontmostApplication {
             return (app.localizedName ?? "未知", app.bundleIdentifier ?? "")
@@ -105,7 +128,7 @@ class ClipboardMonitor: ObservableObject {
         let marker = NSPasteboard.PasteboardType("com.apple.is-remote-clipboard")
         return pasteboard.types?.contains(marker) ?? false
     }
-
+    
     deinit {
         stopMonitoring()
     }

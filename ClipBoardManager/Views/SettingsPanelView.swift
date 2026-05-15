@@ -2,6 +2,7 @@ import SwiftUI
 import SwiftData
 import AppKit
 import UniformTypeIdentifiers
+import KeyboardShortcuts
 
 struct SettingsPanelView: View {
     @ObservedObject private var nav = AppNavigation.shared
@@ -9,12 +10,12 @@ struct SettingsPanelView: View {
 
     @AppStorage("maxRecords") private var maxRecords = 500
     @AppStorage("pollInterval") private var pollInterval = 1.0
-    @AppStorage("globalHotkey") private var globalHotkey = "⌘⇧V"
     @AppStorage("launchAtLogin") private var launchAtLogin = false
     @AppStorage("showInDock") private var showInDock = true
     @AppStorage("menuBarIcon") private var menuBarIcon = true
     @AppStorage("hideFromCapture") private var hideFromCapture = false
     @AppStorage("trimTrailingWhitespaceOnCopy") private var trimTrailing = false
+    @AppStorage("dynamicIslandEnabled") private var dynamicIslandEnabled = false
 
     enum Section: String, CaseIterable, Identifiable {
         case general = "通用"
@@ -129,10 +130,11 @@ struct SettingsPanelView: View {
                 showInDock: $showInDock,
                 menuBarIcon: $menuBarIcon,
                 hideFromCapture: $hideFromCapture,
-                trimTrailing: $trimTrailing
+                trimTrailing: $trimTrailing,
+                dynamicIslandEnabled: $dynamicIslandEnabled
             )
         case .shortcut:
-            ShortcutSection(globalHotkey: $globalHotkey)
+            ShortcutSection()
         case .filter:
             FilterSection()
         case .merge:
@@ -192,6 +194,7 @@ private struct GeneralSection: View {
     @Binding var menuBarIcon: Bool
     @Binding var hideFromCapture: Bool
     @Binding var trimTrailing: Bool
+    @Binding var dynamicIslandEnabled: Bool
 
     @AppStorage("fdaOnboardingDismissed") private var fdaOnboardingDismissed = false
     @ObservedObject private var nav = AppNavigation.shared
@@ -230,6 +233,17 @@ private struct GeneralSection: View {
                 Toggle("", isOn: $hideFromCapture).labelsHidden().toggleStyle(.switch)
             }
             SettingCard(
+                title: "灵动岛",
+                subtitle: "在屏幕顶部刘海下方常驻一个胶囊入口；每次复制会有提示，点击展开内容面板"
+            ) {
+                Toggle("", isOn: $dynamicIslandEnabled)
+                    .labelsHidden()
+                    .toggleStyle(.switch)
+                    .onChange(of: dynamicIslandEnabled) { _, newValue in
+                        DynamicIslandController.shared.setEnabled(newValue)
+                    }
+            }
+            SettingCard(
                 title: "复制时清理末尾空白",
                 subtitle: "再次复制历史条目时自动去除末尾的空格、换行，常见于代码片段"
             ) {
@@ -262,18 +276,56 @@ private struct GeneralSection: View {
 // MARK: - Shortcut
 
 private struct ShortcutSection: View {
-    @Binding var globalHotkey: String
+    @State private var accessibilityTrusted: Bool = AutoPasteService.isTrusted
 
     var body: some View {
-        SettingCard(title: "全局快捷键", subtitle: "默认 ⌘⇧V，重启应用后生效") {
-            Text(globalHotkey)
-                .font(.system(size: 14, design: .monospaced))
-                .padding(.horizontal, 12)
-                .padding(.vertical, 6)
-                .background(
-                    RoundedRectangle(cornerRadius: 6)
-                        .fill(.secondary.opacity(0.18))
-                )
+        VStack(spacing: 14) {
+            ForEach(AppShortcut.allCases) { shortcut in
+                SettingCard(title: shortcut.displayName, subtitle: shortcut.subtitle) {
+                    HStack {
+                        KeyboardShortcuts.Recorder(for: shortcut.name)
+                        Spacer()
+                        Button {
+                            KeyboardShortcuts.reset(shortcut.name)
+                        } label: {
+                            Label("重置", systemImage: "arrow.counterclockwise")
+                                .font(.system(size: 11))
+                        }
+                        .buttonStyle(.borderless)
+                        .help("恢复为默认值")
+                    }
+                }
+            }
+
+            SettingCard(
+                title: "辅助功能权限",
+                subtitle: "快速粘贴需要此权限才能自动模拟 ⌘V；未授权时会复制到剪贴板由你手动粘贴"
+            ) {
+                HStack(spacing: 10) {
+                    Image(systemName: accessibilityTrusted
+                          ? "checkmark.seal.fill"
+                          : "exclamationmark.triangle.fill")
+                        .foregroundStyle(accessibilityTrusted ? .green : .orange)
+                    Text(accessibilityTrusted ? "已授权" : "尚未授权")
+                        .font(.system(size: 13))
+                    Spacer()
+                    Button {
+                        AutoPasteService.requestTrust()
+                        // Re-check on next runloop tick — the user typically
+                        // toggles in System Settings then returns to the app.
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                            accessibilityTrusted = AutoPasteService.isTrusted
+                        }
+                    } label: {
+                        Label(
+                            accessibilityTrusted ? "重新检测" : "授权…",
+                            systemImage: accessibilityTrusted
+                                ? "arrow.clockwise"
+                                : "arrow.up.right.square"
+                        )
+                    }
+                }
+            }
         }
     }
 }

@@ -38,6 +38,13 @@
 		A10031 /* SnippetEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10031; };
 		A10032 /* TrashPanelView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10032; };
 		A10033 /* MCPServer.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10033; };
+		A10034 /* AppShortcuts.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10034; };
+		A10035 /* AutoPasteService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10035; };
+		A10036 /* QuickPasteController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10036; };
+		A10037 /* QuickPasteView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10037; };
+		A10038 /* DynamicIslandController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10038; };
+		A10039 /* DynamicIslandView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10039; };
+		A20001 /* KeyboardShortcuts in Frameworks */ = {isa = PBXBuildFile; productRef = P10001 /* KeyboardShortcuts */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -72,6 +79,12 @@
 		B10031 /* SnippetEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SnippetEditorView.swift; sourceTree = "<group>"; };
 		B10032 /* TrashPanelView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrashPanelView.swift; sourceTree = "<group>"; };
 		B10033 /* MCPServer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MCPServer.swift; sourceTree = "<group>"; };
+		B10034 /* AppShortcuts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppShortcuts.swift; sourceTree = "<group>"; };
+		B10035 /* AutoPasteService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutoPasteService.swift; sourceTree = "<group>"; };
+		B10036 /* QuickPasteController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickPasteController.swift; sourceTree = "<group>"; };
+		B10037 /* QuickPasteView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickPasteView.swift; sourceTree = "<group>"; };
+		B10038 /* DynamicIslandController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DynamicIslandController.swift; sourceTree = "<group>"; };
+		B10039 /* DynamicIslandView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DynamicIslandView.swift; sourceTree = "<group>"; };
 		B10099 /* ClipBoardManager.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ClipBoardManager.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -80,6 +93,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A20001 /* KeyboardShortcuts in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -135,6 +149,8 @@
 				B10029 /* StatsPanelView.swift */,
 				B10031 /* SnippetEditorView.swift */,
 				B10032 /* TrashPanelView.swift */,
+				B10037 /* QuickPasteView.swift */,
+				B10039 /* DynamicIslandView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -160,6 +176,10 @@
 				B10027 /* ImageStitcher.swift */,
 				B10030 /* URLSanitizer.swift */,
 				B10033 /* MCPServer.swift */,
+				B10034 /* AppShortcuts.swift */,
+				B10035 /* AutoPasteService.swift */,
+				B10036 /* QuickPasteController.swift */,
+				B10038 /* DynamicIslandController.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -188,6 +208,9 @@
 			dependencies = (
 			);
 			name = ClipBoardManager;
+			packageProductDependencies = (
+				P10001 /* KeyboardShortcuts */,
+			);
 			productName = ClipBoardManager;
 			productReference = B10099 /* ClipBoardManager.app */;
 			productType = "com.apple.product-type.application";
@@ -212,6 +235,9 @@
 				Base,
 			);
 			mainGroup = E10001;
+			packageReferences = (
+				R10001 /* XCRemoteSwiftPackageReference "KeyboardShortcuts" */,
+			);
 			productRefGroup = E10007 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
@@ -267,6 +293,12 @@
 				A10031 /* SnippetEditorView.swift in Sources */,
 				A10032 /* TrashPanelView.swift in Sources */,
 				A10033 /* MCPServer.swift in Sources */,
+				A10034 /* AppShortcuts.swift in Sources */,
+				A10035 /* AutoPasteService.swift in Sources */,
+				A10036 /* QuickPasteController.swift in Sources */,
+				A10037 /* QuickPasteView.swift in Sources */,
+				A10038 /* DynamicIslandController.swift in Sources */,
+				A10039 /* DynamicIslandView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -456,6 +488,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		R10001 /* XCRemoteSwiftPackageReference "KeyboardShortcuts" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/sindresorhus/KeyboardShortcuts";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.0.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		P10001 /* KeyboardShortcuts */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = R10001 /* XCRemoteSwiftPackageReference "KeyboardShortcuts" */;
+			productName = KeyboardShortcuts;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 089C1665FE841187C02AAC07 /* Project object */;
 }
