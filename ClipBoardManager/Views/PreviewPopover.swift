@@ -59,14 +59,14 @@ struct PreviewPopover: View {
                     .aspectRatio(contentMode: .fit)
                     .padding(8)
             } else {
-                ContentUnavailableView("无法预览图片", systemImage: "photo.badge.exclamationmark")
+                ContentUnavailableView(L("preview.cannotImage"), systemImage: "photo.badge.exclamationmark")
             }
         case .video:
             if let url = item.resolvedFileURL, FileManager.default.fileExists(atPath: url.path) {
                 VideoPlayer(player: AVPlayer(url: url))
                     .padding(8)
             } else {
-                ContentUnavailableView("无法预览视频", systemImage: "video.badge.exclamationmark")
+                ContentUnavailableView(L("preview.cannotVideo"), systemImage: "video.badge.exclamationmark")
             }
         case .file:
             VStack(spacing: 12) {
@@ -114,10 +114,10 @@ struct PreviewPopover: View {
         if epoch != nil || base64 != nil || json != nil {
             VStack(spacing: 8) {
                 if let epoch = epoch {
-                    detectionCard(icon: "clock", title: "时间戳解析") {
+                    detectionCard(icon: "clock", title: L("preview.detection.timestamp")) {
                         VStack(alignment: .leading, spacing: 4) {
-                            Text("UTC: \(epoch.utc)")
-                            Text("本地: \(epoch.local)")
+                            Text(L("preview.utcFormat", epoch.utc))
+                            Text(L("preview.localFormat", epoch.local))
                         }
                         .font(.system(size: 11, design: .monospaced))
                         .textSelection(.enabled)
@@ -125,7 +125,7 @@ struct PreviewPopover: View {
                     }
                 }
                 if let decoded = base64 {
-                    detectionCard(icon: "lock.shield", title: "Base64 解码") {
+                    detectionCard(icon: "lock.shield", title: L("preview.detection.base64")) {
                         Text(decoded)
                             .font(.system(size: 11, design: .monospaced))
                             .textSelection(.enabled)
@@ -133,7 +133,7 @@ struct PreviewPopover: View {
                     }
                 }
                 if let pretty = json {
-                    detectionCard(icon: "curlybraces", title: "JSON") {
+                    detectionCard(icon: "curlybraces", title: L("preview.detection.json")) {
                         ScrollView {
                             Text(pretty)
                                 .font(.system(size: 11, design: .monospaced))

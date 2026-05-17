@@ -44,6 +44,9 @@
 		A10037 /* QuickPasteView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10037; };
 		A10038 /* DynamicIslandController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10038; };
 		A10039 /* DynamicIslandView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10039; };
+		A10040 /* AppearancePreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10040; };
+		A10041 /* Localization.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10041; };
+		A10042 /* TagEditorPopover.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10042; };
 		A20001 /* KeyboardShortcuts in Frameworks */ = {isa = PBXBuildFile; productRef = P10001 /* KeyboardShortcuts */; };
 /* End PBXBuildFile section */
 
@@ -85,6 +88,9 @@
 		B10037 /* QuickPasteView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickPasteView.swift; sourceTree = "<group>"; };
 		B10038 /* DynamicIslandController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DynamicIslandController.swift; sourceTree = "<group>"; };
 		B10039 /* DynamicIslandView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DynamicIslandView.swift; sourceTree = "<group>"; };
+		B10040 /* AppearancePreferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppearancePreferences.swift; sourceTree = "<group>"; };
+		B10041 /* Localization.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Localization.swift; sourceTree = "<group>"; };
+		B10042 /* TagEditorPopover.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TagEditorPopover.swift; sourceTree = "<group>"; };
 		B10099 /* ClipBoardManager.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ClipBoardManager.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -129,6 +135,7 @@
 				B10026 /* MergeSettings.swift */,
 				B10028 /* CopyStats.swift */,
 				B10021 /* AppNavigation.swift */,
+				B10040 /* AppearancePreferences.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -141,6 +148,7 @@
 				B10009 /* MenuBarView.swift */,
 				B10015 /* ThumbnailView.swift */,
 				B10016 /* PreviewPopover.swift */,
+				B10042 /* TagEditorPopover.swift */,
 				B10018 /* ToastView.swift */,
 				B10020 /* SettingsPanelView.swift */,
 				B10022 /* VisualEffectView.swift */,
@@ -180,6 +188,7 @@
 				B10035 /* AutoPasteService.swift */,
 				B10036 /* QuickPasteController.swift */,
 				B10038 /* DynamicIslandController.swift */,
+				B10041 /* Localization.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -299,6 +308,9 @@
 				A10037 /* QuickPasteView.swift in Sources */,
 				A10038 /* DynamicIslandController.swift in Sources */,
 				A10039 /* DynamicIslandView.swift in Sources */,
+				A10040 /* AppearancePreferences.swift in Sources */,
+				A10041 /* Localization.swift in Sources */,
+				A10042 /* TagEditorPopover.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

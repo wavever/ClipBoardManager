@@ -4,8 +4,8 @@ import UniformTypeIdentifiers
 enum FileOpener {
     static func openWithChooser(url: URL) {
         let panel = NSOpenPanel()
-        panel.title = "选择应用打开 \(url.lastPathComponent)"
-        panel.prompt = "选择"
+        panel.title = L("file.openWithChooserTitleFormat", url.lastPathComponent)
+        panel.prompt = L("file.openWithChooserPrompt")
         panel.allowedContentTypes = [.application]
         panel.directoryURL = URL(fileURLWithPath: "/Applications")
         panel.allowsMultipleSelection = false

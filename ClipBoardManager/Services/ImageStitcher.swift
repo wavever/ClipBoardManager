@@ -27,11 +27,28 @@ enum ImageStitcher {
         }
         guard totalWidth > 0, totalHeight > 0 else { return nil }
 
-        let canvas = NSImage(size: NSSize(width: totalWidth, height: totalHeight))
-        canvas.lockFocus()
-        defer { canvas.unlockFocus() }
+        // Render into an NSBitmapImageRep so the output preserves the source
+        // pixel dimensions (NSImage.lockFocus is point-based and downsamples
+        // Retina captures). We also avoid the classic `defer-unlockFocus`
+        // pitfall where tiffRepresentation runs before unlock.
+        guard let rep = NSBitmapImageRep(
+            bitmapDataPlanes: nil,
+            pixelsWide: Int(ceil(totalWidth)),
+            pixelsHigh: Int(ceil(totalHeight)),
+            bitsPerSample: 8,
+            samplesPerPixel: 4,
+            hasAlpha: true,
+            isPlanar: false,
+            colorSpaceName: .deviceRGB,
+            bytesPerRow: 0,
+            bitsPerPixel: 32
+        ) else { return nil }
+        rep.size = NSSize(width: totalWidth, height: totalHeight)
 
-        // Fill background (transparent stays clear).
+        guard let ctx = NSGraphicsContext(bitmapImageRep: rep) else { return nil }
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current = ctx
+
         background.setFill()
         NSRect(x: 0, y: 0, width: totalWidth, height: totalHeight).fill()
 
@@ -63,7 +80,11 @@ enum ImageStitcher {
             }
         }
 
-        return canvas.tiffRepresentation
+        ctx.flushGraphics()
+        NSGraphicsContext.restoreGraphicsState()
+
+        return rep.representation(using: .png, properties: [:])
+            ?? rep.tiffRepresentation
     }
 
     /// Resolve the actual image bytes for a clip — preferring the stored

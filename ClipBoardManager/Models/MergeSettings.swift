@@ -14,13 +14,13 @@ enum MergeSeparatorPreset: String, Codable, CaseIterable, Identifiable {
 
     var displayName: String {
         switch self {
-        case .doubleNewline: return "空行"
-        case .newline:       return "换行"
-        case .space:         return "空格"
-        case .comma:         return "逗号"
-        case .semicolon:     return "分号"
-        case .tab:           return "制表符"
-        case .custom:        return "自定义"
+        case .doubleNewline: return L("merge.sep.doubleNewline")
+        case .newline:       return L("merge.sep.newline")
+        case .space:         return L("merge.sep.space")
+        case .comma:         return L("merge.sep.comma")
+        case .semicolon:     return L("merge.sep.semicolon")
+        case .tab:           return L("merge.sep.tab")
+        case .custom:        return L("merge.sep.custom")
         }
     }
 
@@ -50,8 +50,8 @@ enum ImageMergeDirection: String, Codable, CaseIterable, Identifiable {
 
     var displayName: String {
         switch self {
-        case .vertical:   return "纵向拼接"
-        case .horizontal: return "横向拼接"
+        case .vertical:   return L("merge.dir.vertical")
+        case .horizontal: return L("merge.dir.horizontal")
         }
     }
 
@@ -72,9 +72,9 @@ enum ImageMergeBackground: String, Codable, CaseIterable, Identifiable {
 
     var displayName: String {
         switch self {
-        case .transparent: return "透明"
-        case .white:       return "白色"
-        case .black:       return "黑色"
+        case .transparent: return L("merge.bg.transparent")
+        case .white:       return L("merge.bg.white")
+        case .black:       return L("merge.bg.black")
         }
     }
 

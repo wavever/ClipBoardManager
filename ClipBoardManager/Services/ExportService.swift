@@ -9,9 +9,9 @@ struct ExportFilter {
         var id: String { rawValue }
         var displayName: String {
             switch self {
-            case .all: return "全部"
-            case .favoritesOnly: return "仅收藏"
-            case .pinnedOnly: return "仅置顶"
+            case .all: return L("export.favoriteScope.all")
+            case .favoritesOnly: return L("export.favoriteScope.favorites")
+            case .pinnedOnly: return L("export.favoriteScope.pinned")
             }
         }
     }
@@ -25,11 +25,11 @@ struct ExportFilter {
         var id: String { rawValue }
         var displayName: String {
             switch self {
-            case .allTime: return "全部"
-            case .today: return "今天"
-            case .last7Days: return "最近 7 天"
-            case .last30Days: return "最近 30 天"
-            case .custom: return "自定义"
+            case .allTime: return L("export.range.allTime")
+            case .today: return L("export.range.today")
+            case .last7Days: return L("export.range.last7")
+            case .last30Days: return L("export.range.last30")
+            case .custom: return L("export.range.custom")
             }
         }
     }
@@ -121,7 +121,7 @@ class ExportService {
         panel.canChooseFiles = false
         panel.canChooseDirectories = true
         panel.canCreateDirectories = true
-        panel.prompt = "选择导出目录"
+        panel.prompt = L("export.batchPanel.prompt")
         
         panel.begin { response in
             guard response == .OK, let directory = panel.url else { return }
@@ -142,7 +142,7 @@ class ExportService {
         panel.allowedContentTypes = [.json]
         let stamp = Self.filenameDateFormatter.string(from: Date())
         panel.nameFieldStringValue = "clipboard_export_\(stamp).json"
-        panel.title = "导出剪贴板历史"
+        panel.title = L("export.savePanel.title")
 
         panel.begin { response in
             guard response == .OK, let url = panel.url else {

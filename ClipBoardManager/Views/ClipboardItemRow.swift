@@ -12,9 +12,13 @@ struct ClipboardItemRow: View {
     var onRevealInFinder: () -> Void = {}
     var onOpenFile: () -> Void = {}
     var onOpenURL: () -> Void = {}
+    var onSaveImage: () -> Void = {}
+    var onAddTag: (String) -> Void = { _ in }
+    var onRemoveTag: (String) -> Void = { _ in }
 
     @State private var isHovered = false
     @State private var showPreview = false
+    @State private var showTagEditor = false
 
     private var hasFile: Bool {
         guard let url = item.resolvedFileURL else { return false }
@@ -27,7 +31,8 @@ struct ClipboardItemRow: View {
                 Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
                     .font(.system(size: 20, weight: .regular))
                     .foregroundStyle(isSelected ? Color.accentColor : Color.secondary.opacity(0.6))
-                    .transition(.scale.combined(with: .opacity))
+                    .contentTransition(.symbolEffect(.replace))
+                    .transition(.scale(scale: 0.6).combined(with: .opacity))
             }
 
             ThumbnailView(item: item, size: 44, cornerRadius: 9)
@@ -53,7 +58,7 @@ struct ClipboardItemRow: View {
 
                 HStack(spacing: 8) {
                     HStack(spacing: 4) {
-                        if item.sourceApp == "通用剪贴板" {
+                        if item.sourceApp == L("remote.universalClipboard") {
                             Image(systemName: "iphone.and.arrow.forward")
                                 .font(.system(size: 10, weight: .semibold))
                                 .foregroundStyle(Color.accentColor)
@@ -65,18 +70,41 @@ struct ClipboardItemRow: View {
                     Text(item.formattedDate)
                         .monospacedDigit()
                     rowDot
-                    Text(item.descriptiveTag)
-                        .font(.system(size: 10, weight: .medium))
+                    HStack(spacing: 3) {
+                        Image(systemName: item.itemType.icon)
+                            .font(.system(size: 9, weight: .semibold))
+                        Text(item.descriptiveTag)
+                            .font(.system(size: 10, weight: .medium))
+                    }
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 1.5)
+                    .background(
+                        Capsule(style: .continuous)
+                            .fill(.secondary.opacity(0.14))
+                    )
+                    .overlay(
+                        Capsule(style: .continuous)
+                            .strokeBorder(.secondary.opacity(0.18), lineWidth: 0.5)
+                    )
+                    ForEach(item.tags, id: \.self) { tag in
+                        HStack(spacing: 3) {
+                            Image(systemName: "tag.fill")
+                                .font(.system(size: 9, weight: .semibold))
+                            Text(tag)
+                                .font(.system(size: 10, weight: .medium))
+                        }
+                        .foregroundStyle(Color.accentColor)
                         .padding(.horizontal, 6)
                         .padding(.vertical, 1.5)
                         .background(
                             Capsule(style: .continuous)
-                                .fill(.secondary.opacity(0.14))
+                                .fill(Color.accentColor.opacity(0.14))
                         )
                         .overlay(
                             Capsule(style: .continuous)
-                                .strokeBorder(.secondary.opacity(0.18), lineWidth: 0.5)
+                                .strokeBorder(Color.accentColor.opacity(0.35), lineWidth: 0.5)
                         )
+                    }
                 }
                 .font(.system(size: 11))
                 .foregroundStyle(.secondary)
@@ -118,6 +146,13 @@ struct ClipboardItemRow: View {
         .onHover { hovering in
             isHovered = hovering
         }
+        .sheet(isPresented: $showTagEditor) {
+            TagEditorPopover(
+                item: item,
+                onAdd: onAddTag,
+                onRemove: onRemoveTag
+            )
+        }
     }
 
     private var borderColor: Color {
@@ -134,10 +169,11 @@ struct ClipboardItemRow: View {
     }
 
     private var displayTitle: String {
-        // Merged entries set a preview prefixed with "[合并 N …]" — keep that
-        // label as the title so the row visually reads as a merge result
-        // instead of mirroring the first source item.
-        if let preview = item.preview, preview.hasPrefix("[合并 ") {
+        // Merged entries set a preview prefixed with a localized "[Merged ..."
+        // (or "[合并 ...") tag — keep that as the title so the row visually
+        // reads as a merge result instead of mirroring the first source item.
+        if let preview = item.preview,
+           preview.hasPrefix("[合并 ") || preview.hasPrefix("[Merged ") {
             return preview.components(separatedBy: .newlines).first ?? preview
         }
         if let url = item.resolvedFileURL { return url.lastPathComponent }
@@ -151,12 +187,12 @@ struct ClipboardItemRow: View {
         HStack(spacing: 4) {
             HoverIconButton(
                 systemName: "doc.on.doc",
-                help: "复制",
+                help: L("action.copy"),
                 action: onCopy
             )
             HoverIconButton(
-                systemName: "eye",
-                help: "预览",
+                systemName: "text.viewfinder",
+                help: L("action.preview"),
                 action: { showPreview = true }
             )
             .popover(isPresented: $showPreview, arrowEdge: .trailing) {
@@ -164,38 +200,51 @@ struct ClipboardItemRow: View {
             }
             HoverIconButton(
                 systemName: item.isPinned ? "pin.fill" : "pin",
-                help: item.isPinned ? "取消置顶" : "置顶",
+                help: item.isPinned ? L("action.unpin") : L("action.pin"),
                 tint: item.isPinned ? .orange : nil,
                 action: onTogglePin
             )
             HoverIconButton(
                 systemName: item.isFavorite ? "star.fill" : "star",
-                help: item.isFavorite ? "取消收藏" : "收藏",
+                help: item.isFavorite ? L("action.unfavorite") : L("action.favorite"),
                 tint: item.isFavorite ? .yellow : nil,
                 action: onToggleFavorite
+            )
+            HoverIconButton(
+                systemName: item.tags.isEmpty ? "tag" : "tag.fill",
+                help: L("action.editTags"),
+                tint: item.tags.isEmpty ? nil : .accentColor,
+                action: { showTagEditor = true }
             )
             if item.itemType == .url {
                 HoverIconButton(
                     systemName: "safari",
-                    help: "在浏览器中打开",
+                    help: L("action.openInBrowser"),
                     action: onOpenURL
+                )
+            }
+            if item.itemType == .image, item.imageData != nil {
+                HoverIconButton(
+                    systemName: "square.and.arrow.down",
+                    help: L("action.saveImage"),
+                    action: onSaveImage
                 )
             }
             if hasFile {
                 HoverIconButton(
                     systemName: "folder",
-                    help: "在 Finder 中显示",
+                    help: L("action.revealInFinder"),
                     action: onRevealInFinder
                 )
                 HoverIconButton(
                     systemName: "arrow.up.forward.app",
-                    help: "打开文件",
+                    help: L("action.openFile"),
                     action: onOpenFile
                 )
             }
             HoverIconButton(
                 systemName: "trash",
-                help: "删除",
+                help: L("action.delete"),
                 tint: .red,
                 action: onDelete
             )
@@ -225,7 +274,8 @@ struct HoverIconButton: View {
                 .scaleEffect(isPressed ? 0.92 : 1)
         }
         .buttonStyle(.plain)
-        .help(help)
+        .accessibilityLabel(help)
+        .hoverTip(help)
         .onHover { hovering in
             withAnimation(.easeOut(duration: 0.12)) { isHovered = hovering }
         }

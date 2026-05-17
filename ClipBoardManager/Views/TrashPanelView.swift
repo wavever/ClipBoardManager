@@ -67,11 +67,11 @@ struct TrashPanelView: View {
                     .contentShape(Circle())
             }
             .buttonStyle(.plain)
-            .help("返回")
+            .help(L("common.back"))
             .keyboardShortcut(.escape, modifiers: [])
 
             VStack(alignment: .leading, spacing: 2) {
-                Text("垃圾桶")
+                Text(L("trash.title"))
                     .font(.system(size: 28, weight: .bold))
                 Text(captionText)
                     .font(.system(size: 12))
@@ -83,21 +83,21 @@ struct TrashPanelView: View {
             if !trashed.isEmpty {
                 Button(role: .destructive) {
                     vm.emptyTrash(context: modelContext)
-                    ToastCenter.shared.show("已清空垃圾桶", systemImage: "trash.slash.fill", tint: .red)
+                    ToastCenter.shared.show(L("trash.emptyDone"), systemImage: "trash.slash.fill", tint: .red)
                 } label: {
-                    Label("清空垃圾桶", systemImage: "trash.slash")
+                    Label(L("trash.emptyButton"), systemImage: "trash.slash")
                 }
             }
         }
     }
 
     private var captionText: String {
-        if trashed.isEmpty { return "已删除的条目会先进入这里" }
+        if trashed.isEmpty { return L("trash.captionEmpty") }
         let retention = filters.trashRetentionDays
         if retention <= 0 {
-            return "共 \(trashed.count) 条 · 永久保留"
+            return L("trash.captionForeverFormat", trashed.count)
         }
-        return "共 \(trashed.count) 条 · \(retention) 天后自动清理"
+        return L("trash.captionRetentionFormat", trashed.count, retention)
     }
 
     private var emptyState: some View {
@@ -106,10 +106,10 @@ struct TrashPanelView: View {
             Image(systemName: "trash")
                 .font(.system(size: 38, weight: .light))
                 .foregroundStyle(Color.secondary.opacity(0.5))
-            Text("垃圾桶是空的")
+            Text(L("trash.empty.title"))
                 .font(.system(size: 15, weight: .semibold))
                 .foregroundStyle(.secondary)
-            Text("从历史中删除条目后会出现在这里，过期会自动清理")
+            Text(L("trash.empty.subtitle"))
                 .font(.system(size: 12))
                 .foregroundStyle(.tertiary)
             Spacer()
@@ -127,14 +127,32 @@ struct TrashPanelView: View {
                     .font(.system(size: 13, weight: .semibold))
                     .lineLimit(1)
                 HStack(spacing: 8) {
-                    Text(item.descriptiveTag)
-                        .font(.system(size: 10, weight: .medium))
+                    HStack(spacing: 3) {
+                        Image(systemName: item.itemType.icon)
+                            .font(.system(size: 9, weight: .semibold))
+                        Text(item.descriptiveTag)
+                            .font(.system(size: 10, weight: .medium))
+                    }
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 1.5)
+                    .background(
+                        Capsule().fill(.secondary.opacity(0.14))
+                    )
+                    ForEach(item.tags, id: \.self) { tag in
+                        HStack(spacing: 3) {
+                            Image(systemName: "tag.fill")
+                                .font(.system(size: 9, weight: .semibold))
+                            Text(tag)
+                                .font(.system(size: 10, weight: .medium))
+                        }
+                        .foregroundStyle(Color.accentColor)
                         .padding(.horizontal, 6)
                         .padding(.vertical, 1.5)
                         .background(
-                            Capsule().fill(.secondary.opacity(0.14))
+                            Capsule().fill(Color.accentColor.opacity(0.14))
                         )
-                    Text("删除于 " + relativeDeleted(item))
+                    }
+                    Text(L("trash.deletedAtFormat", relativeDeleted(item)))
                         .font(.system(size: 11))
                         .foregroundStyle(.secondary)
                     Text(expiryHint(for: item))
@@ -147,18 +165,18 @@ struct TrashPanelView: View {
 
             Button {
                 vm.restoreItem(item, context: modelContext)
-                ToastCenter.shared.show("已恢复", systemImage: "arrow.uturn.backward", tint: .accentColor)
+                ToastCenter.shared.show(L("trash.restored"), systemImage: "arrow.uturn.backward", tint: .accentColor)
             } label: {
-                Label("恢复", systemImage: "arrow.uturn.backward")
+                Label(L("trash.restore"), systemImage: "arrow.uturn.backward")
                     .font(.system(size: 12, weight: .medium))
             }
             .buttonStyle(.bordered)
 
             Button(role: .destructive) {
                 vm.purgeItem(item, context: modelContext)
-                ToastCenter.shared.show("已彻底删除", systemImage: "trash.fill", tint: .red)
+                ToastCenter.shared.show(L("trash.purged"), systemImage: "trash.fill", tint: .red)
             } label: {
-                Label("彻底删除", systemImage: "trash")
+                Label(L("trash.purge"), systemImage: "trash")
                     .font(.system(size: 12, weight: .medium))
             }
             .buttonStyle(.bordered)
@@ -178,7 +196,8 @@ struct TrashPanelView: View {
     }
 
     private func displayTitle(for item: ClipboardItem) -> String {
-        if let preview = item.preview, preview.hasPrefix("[合并 ") {
+        if let preview = item.preview,
+           preview.hasPrefix("[合并 ") || preview.hasPrefix("[Merged ") {
             return preview.components(separatedBy: .newlines).first ?? preview
         }
         if let url = item.resolvedFileURL { return url.lastPathComponent }
@@ -191,7 +210,9 @@ struct TrashPanelView: View {
     private func relativeDeleted(_ item: ClipboardItem) -> String {
         guard let deletedAt = item.deletedAt else { return "" }
         let f = RelativeDateTimeFormatter()
-        f.locale = Locale(identifier: "zh_CN")
+        f.locale = L10n.shared.effectiveLanguage == .zh
+            ? Locale(identifier: "zh_CN")
+            : Locale(identifier: "en_US")
         f.unitsStyle = .short
         return f.localizedString(for: deletedAt, relativeTo: Date())
     }
@@ -201,9 +222,9 @@ struct TrashPanelView: View {
         guard days > 0, let deletedAt = item.deletedAt else { return "" }
         let remaining = deletedAt.addingTimeInterval(Double(days) * 86_400)
             .timeIntervalSince(Date())
-        if remaining <= 0 { return "· 即将清理" }
+        if remaining <= 0 { return L("trash.expiry.soon") }
         let hours = Int(remaining / 3600)
-        if hours < 24 { return "· \(hours)h 后清理" }
-        return "· \(hours / 24)d 后清理"
+        if hours < 24 { return L("trash.expiry.hoursFormat", hours) }
+        return L("trash.expiry.daysFormat", hours / 24)
     }
 }

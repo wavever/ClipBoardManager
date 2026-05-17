@@ -5,13 +5,6 @@ struct StatsPanelView: View {
     @ObservedObject private var nav = AppNavigation.shared
     @ObservedObject private var store = CopyStatsStore.shared
 
-    private static let mdFormatter: DateFormatter = {
-        let f = DateFormatter()
-        f.locale = Locale(identifier: "zh_CN")
-        f.dateFormat = "M/d"
-        return f
-    }()
-
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             header
@@ -55,13 +48,13 @@ struct StatsPanelView: View {
                     .contentShape(Circle())
             }
             .buttonStyle(.plain)
-            .help("返回")
+            .help(L("common.back"))
             .keyboardShortcut(.escape, modifiers: [])
 
             VStack(alignment: .leading, spacing: 2) {
-                Text("活跃统计")
+                Text(L("stats.title"))
                     .font(.system(size: 28, weight: .bold))
-                Text("基于本地剪贴板监听的复制次数")
+                Text(L("stats.subtitle"))
                     .font(.system(size: 12))
                     .foregroundStyle(.secondary)
             }
@@ -72,21 +65,17 @@ struct StatsPanelView: View {
 
     private var content: some View {
         VStack(spacing: 14) {
-            SettingCard(title: "汇总", subtitle: "近期复制行为的整体概览") {
+            SettingCard(title: L("stats.summary.title"), subtitle: L("stats.summary.subtitle")) {
                 HStack(spacing: 14) {
-                    summaryTile(label: "今日", value: store.todayCount(), tint: .accentColor)
-                    summaryTile(label: "近 7 天", value: store.countLast(days: 7), tint: .purple)
-                    summaryTile(label: "近 30 天", value: store.countLast(days: 30), tint: .blue)
-                    summaryTile(label: "总计", value: store.totalAllTime, tint: .secondary)
+                    summaryTile(label: L("stats.today"), value: store.todayCount(), tint: .accentColor)
+                    summaryTile(label: L("stats.last7days"), value: store.countLast(days: 7), tint: .purple)
+                    summaryTile(label: L("stats.last30days"), value: store.countLast(days: 30), tint: .blue)
+                    summaryTile(label: L("stats.total"), value: store.totalAllTime, tint: .secondary)
                 }
             }
 
-            SettingCard(title: "活跃热力图", subtitle: "过去 53 周每日复制活跃度") {
+            SettingCard(title: L("stats.heatmap.title"), subtitle: L("stats.heatmap.subtitle")) {
                 ContributionWall(store: store)
-            }
-
-            SettingCard(title: "最近 14 天", subtitle: "每日复制次数趋势") {
-                chart
             }
         }
     }
@@ -121,37 +110,6 @@ struct StatsPanelView: View {
         )
     }
 
-    private var chart: some View {
-        let days = store.lastDays(14)
-        let maxCount = max(days.map(\.count).max() ?? 0, 1)
-        let calendar = Calendar.current
-
-        return VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .bottom, spacing: 6) {
-                ForEach(Array(days.enumerated()), id: \.offset) { _, entry in
-                    let isToday = calendar.isDateInToday(entry.date)
-                    VStack(spacing: 4) {
-                        Text("\(entry.count)")
-                            .font(.system(size: 9, weight: .medium, design: .monospaced))
-                            .foregroundStyle(entry.count > 0 ? .primary : .tertiary)
-                        ZStack(alignment: .bottom) {
-                            RoundedRectangle(cornerRadius: 3)
-                                .fill(.secondary.opacity(0.10))
-                                .frame(height: 64)
-                            RoundedRectangle(cornerRadius: 3)
-                                .fill(isToday ? Color.accentColor : Color.accentColor.opacity(0.55))
-                                .frame(height: max(CGFloat(entry.count) / CGFloat(maxCount) * 64, entry.count > 0 ? 4 : 0))
-                        }
-                        Text(Self.mdFormatter.string(from: entry.date))
-                            .font(.system(size: 9))
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                    }
-                    .frame(maxWidth: .infinity)
-                }
-            }
-        }
-    }
 }
 
 // MARK: - Contribution wall (GitHub-style heatmap)
@@ -163,19 +121,29 @@ private struct ContributionWall: View {
     private let cellSize: CGFloat = 11
     private let gap: CGFloat = 3
 
-    private static let monthFormatter: DateFormatter = {
+    private static var monthFormatter: DateFormatter {
         let f = DateFormatter()
-        f.locale = Locale(identifier: "zh_CN")
-        f.dateFormat = "M月"
+        if L10n.shared.effectiveLanguage == .zh {
+            f.locale = Locale(identifier: "zh_CN")
+            f.dateFormat = "M月"
+        } else {
+            f.locale = Locale(identifier: "en_US")
+            f.dateFormat = "MMM"
+        }
         return f
-    }()
+    }
 
-    private static let dayFormatter: DateFormatter = {
+    private static var dayFormatter: DateFormatter {
         let f = DateFormatter()
-        f.locale = Locale(identifier: "zh_CN")
-        f.dateFormat = "yyyy-MM-dd EEEE"
+        if L10n.shared.effectiveLanguage == .zh {
+            f.locale = Locale(identifier: "zh_CN")
+            f.dateFormat = "yyyy-MM-dd EEEE"
+        } else {
+            f.locale = Locale(identifier: "en_US")
+            f.dateFormat = "yyyy-MM-dd EEEE"
+        }
         return f
-    }()
+    }
 
     private struct DayCell {
         let date: Date?
@@ -189,7 +157,7 @@ private struct ContributionWall: View {
 
         return VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 8) {
-                Text("过去一年共 \(totalCount) 次复制")
+                Text(L("stats.totalCountFormat", totalCount))
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
                 Spacer()
@@ -263,13 +231,13 @@ private struct ContributionWall: View {
 
     private var legend: some View {
         HStack(spacing: 4) {
-            Text("少").font(.system(size: 9)).foregroundStyle(.secondary)
+            Text(L("stats.legend.less")).font(.system(size: 9)).foregroundStyle(.secondary)
             ForEach(0..<5, id: \.self) { level in
                 RoundedRectangle(cornerRadius: 2)
                     .fill(colorForLevel(level))
                     .frame(width: cellSize, height: cellSize)
             }
-            Text("多").font(.system(size: 9)).foregroundStyle(.secondary)
+            Text(L("stats.legend.more")).font(.system(size: 9)).foregroundStyle(.secondary)
         }
     }
 
@@ -325,6 +293,6 @@ private struct ContributionWall: View {
 
     private func tooltip(for cell: DayCell) -> String {
         guard let date = cell.date else { return "" }
-        return "\(Self.dayFormatter.string(from: date)) · \(cell.count) 次"
+        return L("stats.tooltipFormat", Self.dayFormatter.string(from: date), cell.count)
     }
 }

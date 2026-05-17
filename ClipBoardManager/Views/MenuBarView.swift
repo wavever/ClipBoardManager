@@ -50,7 +50,7 @@ struct MenuBarView: View {
                     .font(.system(size: 12, weight: .semibold))
                     .foregroundStyle(.white)
             }
-            Text("剪贴板历史")
+            Text(L("main.title"))
                 .font(.system(size: 14, weight: .semibold))
             Spacer()
             Button {
@@ -63,7 +63,7 @@ struct MenuBarView: View {
                     .frame(width: 26, height: 26)
             }
             .buttonStyle(.plain)
-            .help("打开设置")
+            .help(L("menubar.openSettings"))
 
             Button {
                 openWindow(id: "main")
@@ -75,7 +75,7 @@ struct MenuBarView: View {
                     .frame(width: 26, height: 26)
             }
             .buttonStyle(.plain)
-            .help("打开主窗口")
+            .help(L("menubar.openMainWindow"))
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
@@ -86,7 +86,7 @@ struct MenuBarView: View {
             Image(systemName: "magnifyingglass")
                 .font(.system(size: 11))
                 .foregroundStyle(.secondary)
-            TextField("搜索…", text: $searchText)
+            TextField(L("common.search"), text: $searchText)
                 .textFieldStyle(.plain)
                 .font(.system(size: 12))
             if !searchText.isEmpty {
@@ -115,7 +115,7 @@ struct MenuBarView: View {
             Image(systemName: "tray")
                 .font(.system(size: 24, weight: .light))
                 .foregroundStyle(.secondary)
-            Text(searchText.isEmpty ? "暂无记录" : "未找到匹配的内容")
+            Text(searchText.isEmpty ? L("menubar.empty.noRecords") : L("menubar.empty.noMatch"))
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
@@ -139,11 +139,11 @@ struct MenuBarView: View {
 
     private var footer: some View {
         HStack {
-            Text("\(allItems.count) 条记录")
+            Text(L("menubar.recordCountFormat", allItems.count))
                 .font(.caption2)
                 .foregroundStyle(.secondary)
             Spacer()
-            Text("⌘⇧V 打开主窗口")
+            Text(L("menubar.shortcutHint"))
                 .font(.caption2)
                 .foregroundStyle(.tertiary)
         }
@@ -176,7 +176,7 @@ struct MenuBarRow: View {
                         .lineLimit(1)
                 }
                 HStack(spacing: 4) {
-                    if item.sourceApp == "通用剪贴板" {
+                    if item.sourceApp == L("remote.universalClipboard") {
                         Image(systemName: "iphone.and.arrow.forward")
                             .font(.system(size: 9, weight: .semibold))
                             .foregroundStyle(Color.accentColor)
@@ -204,7 +204,7 @@ struct MenuBarRow: View {
                         )
                 }
                 .buttonStyle(.plain)
-                .help(copySucceeded ? "已复制" : "复制")
+                .help(copySucceeded ? L("common.copied") : L("common.copy"))
                 .transition(.opacity)
             }
         }

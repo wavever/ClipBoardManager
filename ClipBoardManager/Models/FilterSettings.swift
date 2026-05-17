@@ -16,8 +16,8 @@ struct TextFilterRule: Codable, Identifiable, Hashable {
 
         var displayName: String {
             switch self {
-            case .contains: return "包含文本"
-            case .excludes: return "不包含文本"
+            case .contains: return L("settings.filter.textRules.contains")
+            case .excludes: return L("settings.filter.textRules.excludes")
             }
         }
     }

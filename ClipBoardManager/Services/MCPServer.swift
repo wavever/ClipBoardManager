@@ -14,6 +14,11 @@ enum MCPServer {
     private static let protocolVersion = "2024-11-05"
     private static let serverName = "ClipBoardManager"
     private static let serverVersion = "1.0.0"
+    private static let semanticThreshold: Float = 0.35
+    private static let semanticStrongThreshold: Float = 0.55
+    private static let semanticTopDelta: Float = 0.16
+    private static let semanticKeywordBoost: Float = 0.35
+    private static let semanticSourceBoost: Float = 0.12
 
     // MARK: - Entry point
 
@@ -225,23 +230,63 @@ enum MCPServer {
 
         var matched: [ClipboardItem] = []
 
-        if semantic, let queryVec = EmbeddingService.shared.embed(query) {
-            var scored: [(ClipboardItem, Float)] = []
-            for item in items {
-                guard let emb = item.embedding, emb.count == queryVec.data.count else { continue }
-                let score = EmbeddingService.shared.cosineSimilarity(queryVec.data, emb)
-                if score >= 0.25 {
-                    scored.append((item, score))
+        if semantic {
+            let queryVectors = EmbeddingService.shared.embeddingsForSearch(query)
+            if !queryVectors.isEmpty {
+                struct Scored {
+                    let item: ClipboardItem
+                    let semanticScore: Float
+                    let keywordScore: Float
+                    let originalIndex: Int
+
+                    var score: Float { semanticScore + keywordScore }
+                    var hasKeywordMatch: Bool { keywordScore > 0 }
                 }
+
+                var scored: [Scored] = []
+                for (index, item) in items.enumerated() {
+                    let semanticScore = EmbeddingService.shared.bestSimilarity(
+                        queryVectors: queryVectors,
+                        itemEmbedding: item.embedding,
+                        itemLanguage: item.embeddingLang
+                    ) ?? 0
+                    let keywordScore = keywordMatchScore(for: item, query: query)
+                    if semanticScore >= semanticThreshold || keywordScore > 0 {
+                        scored.append(
+                            Scored(
+                                item: item,
+                                semanticScore: semanticScore,
+                                keywordScore: keywordScore,
+                                originalIndex: index
+                            )
+                        )
+                    }
+                }
+
+                if let topSemantic = scored.map(\.semanticScore).max(), topSemantic >= semanticThreshold {
+                    let cutoff = max(semanticThreshold, topSemantic - semanticTopDelta)
+                    scored = scored.filter {
+                        $0.hasKeywordMatch ||
+                        $0.semanticScore >= semanticStrongThreshold ||
+                        $0.semanticScore >= cutoff
+                    }
+                }
+                scored.sort {
+                    if $0.hasKeywordMatch != $1.hasKeywordMatch {
+                        return $0.hasKeywordMatch
+                    }
+                    if $0.score != $1.score {
+                        return $0.score > $1.score
+                    }
+                    return $0.originalIndex < $1.originalIndex
+                }
+                matched = scored.prefix(limit).map { $0.item }
             }
-            scored.sort { $0.1 > $1.1 }
-            matched = scored.prefix(limit).map { $0.0 }
         }
 
         if matched.isEmpty {
-            let needle = query.lowercased()
             matched = items
-                .filter { $0.content.lowercased().contains(needle) }
+                .filter { keywordMatchScore(for: $0, query: query) > 0 }
                 .prefix(limit)
                 .map { $0 }
         }
@@ -253,6 +298,17 @@ enum MCPServer {
         return matched.enumerated()
             .map { idx, item in formatResultRow(index: idx, item: item) }
             .joined(separator: "\n\n")
+    }
+
+    private static func keywordMatchScore(for item: ClipboardItem, query: String) -> Float {
+        var score: Float = 0
+        if item.content.localizedCaseInsensitiveContains(query) {
+            score += semanticKeywordBoost
+        }
+        if item.sourceApp.localizedCaseInsensitiveContains(query) {
+            score += semanticSourceBoost
+        }
+        return score
     }
 
     // MARK: list_recent

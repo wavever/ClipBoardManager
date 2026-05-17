@@ -1,0 +1,864 @@
+import Foundation
+import Observation
+
+/// In-memory localization registry.
+///
+/// SwiftUI does not support runtime language switching out of the box — the
+/// system bundle picks a language at launch based on `Locale.preferredLanguages`
+/// and won't re-load `.strings` files when the locale environment changes. To
+/// get instant switching we keep zh/en string tables in memory and re-render
+/// any view that reads from this `@Observable` singleton.
+///
+/// Usage from views:
+/// ```
+/// Text(L("settings.title"))                       // simple lookup
+/// Text(L("export.willExport", matched, allItems)) // printf-style format
+/// ```
+///
+/// When `appLanguage` is `.system`, the manager resolves to either `.zh` or
+/// `.en` based on `Locale.preferredLanguages`.
+@Observable
+final class L10n {
+    static let shared = L10n()
+
+    /// Active user preference. `system` defers to OS locale.
+    var language: AppLanguage = .system
+
+    private var observer: NSObjectProtocol?
+
+    private init() {
+        refreshFromDefaults()
+        observer = NotificationCenter.default.addObserver(
+            forName: UserDefaults.didChangeNotification,
+            object: UserDefaults.standard,
+            queue: .main
+        ) { [weak self] _ in
+            self?.refreshFromDefaults()
+        }
+    }
+
+    deinit {
+        if let observer { NotificationCenter.default.removeObserver(observer) }
+    }
+
+    private func refreshFromDefaults() {
+        let raw = UserDefaults.standard.string(forKey: "appLanguage")
+            ?? AppLanguage.system.rawValue
+        let next = AppLanguage(rawValue: raw) ?? .system
+        if next != language { language = next }
+    }
+
+    /// Resolves `.system` into a concrete language by looking at the OS locale.
+    var effectiveLanguage: AppLanguage {
+        if language == .system {
+            let preferred = Locale.preferredLanguages.first ?? "en"
+            return preferred.hasPrefix("zh") ? .zh : .en
+        }
+        return language
+    }
+
+    /// Look up the translation for `key` in the active language. Falls back to
+    /// the Chinese table (the original strings), then to the key itself.
+    func t(_ key: String) -> String {
+        let table = (effectiveLanguage == .zh) ? Self.zh : Self.en
+        if let value = table[key] { return value }
+        return Self.zh[key] ?? key
+    }
+}
+
+/// Translate `key`. Use inside SwiftUI view bodies — accessing
+/// `L10n.shared.language` registers the view as a dependency, so the view
+/// re-renders automatically when the user picks a different language.
+func L(_ key: String) -> String { L10n.shared.t(key) }
+
+/// `printf`-style formatted translation. Use when you need to interpolate
+/// numbers or strings without breaking word order across languages.
+func L(_ key: String, _ args: any CVarArg...) -> String {
+    String(format: L10n.shared.t(key), arguments: args)
+}
+
+// MARK: - Tables
+
+extension L10n {
+    static let zh: [String: String] = [
+        // common
+        "common.copy": "复制",
+        "common.copied": "已复制",
+        "common.delete": "删除",
+        "common.deleted": "已删除",
+        "common.cancel": "取消",
+        "common.done": "完成",
+        "common.save": "保存",
+        "common.close": "关闭",
+        "common.back": "返回",
+        "common.unknown": "未知",
+        "common.unknownSource": "未知来源",
+        "common.notSet": "尚未添加",
+        "common.all": "全部",
+        "common.today": "今天",
+        "common.yesterday": "昨天",
+        "common.preview": "预览",
+        "common.add": "添加",
+        "common.remove": "移除",
+        "common.reset": "重置",
+        "common.allTypes": "全部类型",
+        "common.search": "搜索…",
+        "common.searchContent": "搜索内容…",
+        "common.semanticSearch": "语义搜索…",
+        "common.searchMode.full": "全文",
+        "common.searchMode.semantic": "语义",
+        "common.searchMode.indexing": "建索引中…",
+        "common.clearSearch": "清空搜索",
+        "search.semantic.indexing.toast": "语义索引仍在生成，请稍后再试",
+        "search.semantic.disabled.toast": "语义搜索已在设置中关闭",
+
+        // types
+        "type.text": "文本",
+        "type.image": "图片",
+        "type.video": "视频",
+        "type.file": "文件",
+        "type.url": "链接",
+        "type.rtf": "富文本",
+
+        // descriptive tags for files
+        "tag.application": "应用程序",
+        "tag.installer": "安装包",
+        "tag.dmg": "磁盘映像",
+        "tag.ipa": "应用包",
+        "tag.folder": "文件夹",
+        "tag.audio": "音频文件",
+        "tag.video": "视频文件",
+        "tag.image": "图片文件",
+        "tag.pdf": "PDF 文档",
+        "tag.archive": "压缩文件",
+        "tag.sourceCode": "代码文件",
+        "tag.spreadsheet": "电子表格",
+        "tag.presentation": "演示文稿",
+        "tag.html": "网页文件",
+        "tag.json": "JSON 文件",
+        "tag.xml": "XML 文件",
+        "tag.rtfFile": "富文本文件",
+        "tag.plainText": "文本文件",
+        "tag.bundle": "软件包",
+
+        // remote / source app
+        "remote.universalClipboard": "通用剪贴板",
+        "snippet.sourceApp": "片段",
+
+        // list scope
+        "scope.all": "全部",
+        "scope.favorites": "收藏",
+
+        // main window
+        "main.title": "剪贴板历史",
+        "main.stat.records": "条记录",
+        "main.stat.favorites": "收藏",
+        "main.stat.today": "今日",
+        "main.empty.title.all": "暂无剪贴板记录",
+        "main.empty.title.favorites": "还没有收藏的内容",
+        "main.empty.title.noMatch": "未找到匹配的内容",
+        "main.empty.subtitle.all": "复制点什么试试 — 文本、图片、文件都可以",
+        "main.empty.subtitle.favorites": "在条目上点 ☆ 即可加入收藏",
+        "main.empty.subtitle.noMatch": "试试其他关键字或类型",
+        "main.pinnedCountFormat": "置顶 %d 条",
+
+        // toolbar
+        "toolbar.newSnippet": "新建片段",
+        "toolbar.selectAndMerge": "选择并合并",
+        "toolbar.exitSelection": "退出选择",
+        "toolbar.trash": "垃圾桶",
+        "toolbar.stats": "活跃统计",
+        "toolbar.settings": "设置",
+
+        // selection / merge
+        "selection.selectedFormat": "已选 %d/%d",
+        "selection.selectAll": "全选",
+        "selection.clear": "清空",
+        "selection.invert": "反选",
+        "selection.mergeCountFormat": "合并 %d 条",
+        "selection.mergedFormat": "已合并 %d 条",
+        "selection.mergedSuffix.deleted": "（已删除原条目）",
+        "selection.requireTwo": "至少选择两条",
+        "selection.requireSameType": "仅支持同类型合并",
+        "selection.imageMergeDisabled": "图片合并未启用（设置 → 合并）",
+        "selection.mergeFailed": "合并失败",
+        "merge.sourceLabelFormat": "合并 (%d 条)",
+        "merge.previewTextFormat": "[合并 %d 条] ",
+        "merge.previewFileFormat": "[合并 %d 项] ",
+        "merge.imageContentFormat": "[图片 拼接 %d 张 · %dKB]",
+        "merge.imagePlaceholderFormat": "[图片 %dKB]",
+        "merge.rtfPlaceholder": "[富文本]",
+
+        // merge separator presets
+        "merge.sep.doubleNewline": "空行",
+        "merge.sep.newline": "换行",
+        "merge.sep.space": "空格",
+        "merge.sep.comma": "逗号",
+        "merge.sep.semicolon": "分号",
+        "merge.sep.tab": "制表符",
+        "merge.sep.custom": "自定义",
+        "merge.dir.vertical": "纵向拼接",
+        "merge.dir.horizontal": "横向拼接",
+        "merge.bg.transparent": "透明",
+        "merge.bg.white": "白色",
+        "merge.bg.black": "黑色",
+
+        // action bar
+        "action.copy": "复制",
+        "action.preview": "预览",
+        "action.pin": "置顶",
+        "action.unpin": "取消置顶",
+        "action.favorite": "收藏",
+        "action.unfavorite": "取消收藏",
+        "action.openInBrowser": "在浏览器中打开",
+        "action.saveImage": "保存图片…",
+        "action.editTags": "编辑标签",
+        "tags.title": "标签",
+        "tags.placeholder": "添加标签…",
+        "tags.empty": "暂无标签",
+        "action.revealInFinder": "在 Finder 中显示",
+        "action.openFile": "打开文件",
+        "action.openWith": "用其他应用打开…",
+        "action.exportOne": "导出…",
+        "action.delete": "删除",
+        "action.pinned": "已置顶",
+        "action.unpinned": "已取消置顶",
+        "action.favorited": "已添加到收藏",
+        "action.unfavorited": "已取消收藏",
+
+        // settings
+        "settings.title": "设置",
+        "settings.tab.general": "通用",
+        "settings.tab.shortcut": "快捷键",
+        "settings.tab.filter": "过滤",
+        "settings.tab.merge": "合并",
+        "settings.tab.data": "数据",
+
+        // settings: general
+        "settings.language.title": "界面语言",
+        "settings.language.subtitle": "切换后立即预览界面语言，保存后永久生效",
+        "settings.language.system": "跟随系统",
+        "settings.theme.title": "外观主题",
+        "settings.theme.subtitle": "选择应用的外观主题，立即生效",
+        "settings.theme.light": "浅色",
+        "settings.theme.dark": "深色",
+        "settings.theme.system": "跟随系统",
+        "settings.window.title": "窗口行为",
+        "settings.window.launchAtLogin": "开机自启",
+        "settings.window.launchAtLogin.subtitle": "登录系统时自动运行 ClipBoard Manager",
+        "settings.window.showInDock": "在 Dock 中显示",
+        "settings.window.showInDock.subtitle": "关闭后应用以菜单栏方式存在，不占用 Dock",
+        "settings.window.menuBarIcon": "显示菜单栏图标",
+        "settings.window.menuBarIcon.subtitle": "在系统菜单栏右侧展示快捷入口",
+        "settings.window.hideFromCapture": "屏幕录制中隐藏",
+        "settings.window.hideFromCapture.subtitle": "开启后剪贴板窗口不会出现在录屏、屏幕共享或截图中",
+        "settings.window.dynamicIsland": "灵动岛",
+        "settings.window.dynamicIsland.subtitle": "在屏幕顶部刘海下方常驻一个胶囊入口；每次复制会有提示，点击展开内容面板",
+        "settings.window.trimTrailing": "复制时清理末尾空白",
+        "settings.window.trimTrailing.subtitle": "再次复制历史条目时自动去除末尾的空格、换行，常见于代码片段",
+        "settings.storage.title": "数据存储",
+        "settings.storage.maxRecords": "最大记录数",
+        "settings.storage.maxRecords.subtitle": "超过该上限时会自动清理最旧的内容",
+        "settings.storage.maxRecordsFormat": "%d 条",
+        "settings.storage.maxRecordsUnit": "条",
+        "settings.storage.pollInterval": "监听间隔",
+        "settings.storage.pollInterval.subtitle": "降低间隔反应更快，但会增加 CPU 占用",
+        "settings.poll.halfSecond": "0.5 秒",
+        "settings.poll.oneSecond": "1 秒",
+        "settings.poll.twoSeconds": "2 秒",
+        "settings.poll.fiveSeconds": "5 秒",
+        "settings.semantic.title": "语义搜索",
+        "settings.semantic.toggle": "启用语义搜索",
+        "settings.semantic.subtitle": "基于本地模型按含义查找剪贴板内容，向量在本机生成不上传",
+        "settings.semantic.indexing.title": "正在建立语义索引",
+        "settings.semantic.indexing.subtitle.format": "已处理 %1$d / %2$d 条历史记录",
+        "settings.semantic.indexing.idle": "已就绪",
+        "settings.fda.title": "完全磁盘访问",
+        "settings.fda.subtitle": "授权后读取桌面、下载、文稿等位置的文件不会再弹窗",
+        "settings.fda.openPrefs": "打开系统设置",
+        "settings.fda.viewOnboarding": "重新查看引导",
+
+        // settings: shortcut
+        "settings.shortcut.group.title": "全局快捷键",
+        "settings.shortcut.openMainWindow": "打开主窗口",
+        "settings.shortcut.openMainWindow.subtitle": "全局热键，激活主窗口并置前",
+        "settings.shortcut.openQuickPaste": "弹出快速粘贴浮窗",
+        "settings.shortcut.openQuickPaste.subtitle": "在鼠标位置弹出浮窗，多选后自动粘贴到当前应用",
+        "settings.shortcut.resetTooltip": "恢复为默认值",
+        "settings.shortcut.permission.title": "权限",
+        "settings.shortcut.permission.accessibility": "辅助功能权限",
+        "settings.shortcut.permission.accessibility.subtitle": "快速粘贴需要此权限才能自动模拟 ⌘V；未授权时会复制到剪贴板由你手动粘贴",
+        "settings.shortcut.permission.granted": "已授权",
+        "settings.shortcut.permission.notGranted": "尚未授权",
+        "settings.shortcut.permission.recheck": "重新检测",
+        "settings.shortcut.permission.grant": "授权…",
+
+        // settings: filter
+        "settings.filter.link.title": "链接处理",
+        "settings.filter.stripTracking": "净化链接",
+        "settings.filter.stripTracking.subtitle": "复制 http(s) 链接时自动去除 utm_*、fbclid、gclid 等跟踪参数",
+        "settings.filter.apps.title": "排除的应用",
+        "settings.filter.apps.subtitle": "来自这些应用的复制内容不会被记录",
+        "settings.filter.apps.addButton": "添加应用…",
+        "settings.filter.apps.chooserTitle": "选择要排除的应用",
+        "settings.filter.apps.chooserPrompt": "添加",
+        "settings.filter.apps.removedFormat": "已移除应用：%@",
+        "settings.filter.apps.addedFormat": "已添加 %d 个应用",
+        "settings.filter.types.title": "排除的类型",
+        "settings.filter.textRules.title": "文本规则",
+        "settings.filter.textRules.subtitle": "可添加多条规则；任一规则匹配即被过滤",
+        "settings.filter.textRules.add": "添加规则",
+        "settings.filter.textRules.placeholder": "文本",
+        "settings.filter.textRules.contains": "包含文本",
+        "settings.filter.textRules.excludes": "不包含文本",
+
+        // settings: merge
+        "settings.merge.behavior.title": "合并行为",
+        "settings.merge.deleteOriginals": "合并后删除原条目",
+        "settings.merge.deleteOriginals.subtitle": "开启后，合并将删除被选中的原条目；关闭则保留原条目",
+        "settings.merge.enableImageMerge": "图片合并",
+        "settings.merge.enableImageMerge.subtitle": "启用后即可对多张图片进行拼接（纵向或横向）",
+        "settings.merge.imageParams.title": "图片拼接参数",
+        "settings.merge.imageParams.subtitle": "调整方向、背景与图间距",
+        "settings.merge.imageParams.direction": "方向",
+        "settings.merge.imageParams.background": "背景色",
+        "settings.merge.imageParams.spacing": "间距",
+        "settings.merge.textSep.title": "文本 / 链接 / 富文本 分隔符",
+        "settings.merge.textSep.subtitle": "选择「自定义」时，可使用 \\n 表示换行、\\t 表示制表符",
+        "settings.merge.textSep.placeholder": "例如：\\n--\\n",
+        "settings.merge.fileSep.title": "文件 / 视频 分隔符",
+        "settings.merge.fileSep.subtitle": "用于合并多条文件路径",
+        "settings.merge.fileSep.placeholder": "例如：; ",
+        "settings.merge.previewFormat": "预览：%@",
+
+        // settings: data
+        "settings.data.trash.title": "垃圾桶",
+        "settings.data.trash.enable": "启用垃圾桶",
+        "settings.data.trash.enable.subtitle": "开启后，删除的条目会先进入垃圾桶，便于反悔。关闭则直接彻底删除",
+        "settings.data.trash.autoClean": "自动清理",
+        "settings.data.trash.autoClean.subtitle": "超过期限的条目会被永久删除",
+        "settings.data.stats.title": "统计",
+        "settings.data.stats.recordCopy": "记录拷贝次数",
+        "settings.data.stats.recordCopy.subtitle": "关闭后将不再统计新发生的复制行为，已有数据保留",
+        "settings.data.retention.title": "自动清理",
+        "settings.data.retention.subtitle": "按类型设定保留时长，超期后自动删除。置顶 / 收藏 的条目永远保留",
+        "settings.data.retention.cleanNow": "立即清理",
+        "settings.data.retention.cleaned": "已按规则清理",
+        "settings.data.export.title": "导出 / 清除",
+        "settings.data.export.subtitle": "导出整份历史用于备份，或清空所有记录与统计",
+        "settings.data.export.exportButton": "导出为 JSON…",
+        "settings.data.export.clearHistory": "清空历史",
+        "settings.data.export.clearedHistory": "已清空历史",
+        "settings.data.export.clearStats": "清除统计",
+        "settings.data.export.clearedStats": "已清除统计",
+
+        // retention durations
+        "retention.forever": "永久",
+        "retention.oneDay": "1 天",
+        "retention.threeDays": "3 天",
+        "retention.sevenDays": "7 天",
+        "retention.fourteenDays": "14 天",
+        "retention.thirtyDays": "30 天",
+        "retention.ninetyDays": "90 天",
+        "retention.oneEightyDays": "180 天",
+
+        // export panel
+        "export.title": "导出为 JSON",
+        "export.subtitle": "按筛选条件导出剪贴板历史",
+        "export.types.title": "类型",
+        "export.types.subtitle": "勾选要导出的内容类型",
+        "export.range.title": "时间范围",
+        "export.range.from": "从",
+        "export.range.to": "到",
+        "export.range.allTime": "全部",
+        "export.range.today": "今天",
+        "export.range.last7": "最近 7 天",
+        "export.range.last30": "最近 30 天",
+        "export.range.custom": "自定义",
+        "export.favorites.title": "收藏与置顶",
+        "export.favoriteScope.all": "全部",
+        "export.favoriteScope.favorites": "仅收藏",
+        "export.favoriteScope.pinned": "仅置顶",
+        "export.options.title": "其他选项",
+        "export.options.includeImage": "包含图片数据（base64）",
+        "export.options.includeImage.subtitle": "文件体积会显著增大；不勾选时仅记录元信息",
+        "export.willExportFormat": "将导出 %d / %d 条",
+        "export.exportButton": "导出 JSON",
+        "export.successFormat": "已导出 %d 条到 %@",
+        "export.failedFormat": "导出失败：%@",
+        "export.savePanel.title": "导出剪贴板历史",
+        "export.batchPanel.prompt": "选择导出目录",
+
+        // menu bar
+        "menubar.openSettings": "打开设置",
+        "menubar.openMainWindow": "打开主窗口",
+        "menubar.empty.noRecords": "暂无记录",
+        "menubar.empty.noMatch": "未找到匹配的内容",
+        "menubar.shortcutHint": "⌘⇧V 打开主窗口",
+        "menubar.recordCountFormat": "%d 条记录",
+
+        // preview popover
+        "preview.cannotImage": "无法预览图片",
+        "preview.cannotVideo": "无法预览视频",
+        "preview.detection.timestamp": "时间戳解析",
+        "preview.detection.base64": "Base64 解码",
+        "preview.detection.json": "JSON",
+        "preview.utcFormat": "UTC: %@",
+        "preview.localFormat": "本地: %@",
+
+        // snippet editor
+        "snippet.title": "新建片段",
+        "snippet.placeholder": "输入要保存的内容…",
+        "snippet.pinAfterSave": "保存后置顶",
+        "snippet.savedAndPinned": "片段已保存并置顶",
+        "snippet.saved": "片段已保存",
+
+        // quick paste
+        "quickpaste.title": "快速粘贴",
+        "quickpaste.hint.empty": "点击任一条粘贴，或多选后点按钮",
+        "quickpaste.selectedCountFormat": "已选 %d 条",
+        "quickpaste.paste": "粘贴",
+        "quickpaste.pasteInOrderFormat": "按顺序粘贴 (%d)",
+        "quickpaste.emptyClipboard": "剪贴板历史为空",
+        "quickpaste.manualPasteHint": "已复制到剪贴板，请手动 ⌘V；可在系统设置「辅助功能」中授权自动粘贴",
+
+        // trash
+        "trash.title": "垃圾桶",
+        "trash.captionEmpty": "已删除的条目会先进入这里",
+        "trash.captionForeverFormat": "共 %d 条 · 永久保留",
+        "trash.captionRetentionFormat": "共 %d 条 · %d 天后自动清理",
+        "trash.empty.title": "垃圾桶是空的",
+        "trash.empty.subtitle": "从历史中删除条目后会出现在这里，过期会自动清理",
+        "trash.emptyButton": "清空垃圾桶",
+        "trash.emptyDone": "已清空垃圾桶",
+        "trash.deletedAtFormat": "删除于 %@",
+        "trash.expiry.soon": "· 即将清理",
+        "trash.expiry.hoursFormat": "· %dh 后清理",
+        "trash.expiry.daysFormat": "· %dd 后清理",
+        "trash.restore": "恢复",
+        "trash.restored": "已恢复",
+        "trash.purge": "彻底删除",
+        "trash.purged": "已彻底删除",
+
+        // stats
+        "stats.title": "活跃统计",
+        "stats.subtitle": "基于本地剪贴板监听的复制次数",
+        "stats.summary.title": "汇总",
+        "stats.summary.subtitle": "近期复制行为的整体概览",
+        "stats.today": "今日",
+        "stats.last7days": "近 7 天",
+        "stats.last30days": "近 30 天",
+        "stats.total": "总计",
+        "stats.heatmap.title": "活跃热力图",
+        "stats.heatmap.subtitle": "过去 53 周每日复制活跃度",
+        "stats.totalCountFormat": "过去一年共 %d 次复制",
+        "stats.legend.less": "少",
+        "stats.legend.more": "多",
+        "stats.tooltipFormat": "%@ · %d 次",
+
+        // onboarding
+        "onboarding.title": "一次授权，告别权限弹框",
+        "onboarding.subtitle": "让 ClipBoard Manager 可以预览任意文件",
+        "onboarding.body": "当你复制位于「桌面」「下载」「文稿」「iCloud 云盘」等受保护位置的文件时，macOS 会逐个文件夹弹窗请求授权。\n\n在「系统设置 → 隐私与安全性 → 完全磁盘访问」中打开 ClipBoard Manager 的开关后，所有此类提示都会消失。",
+        "onboarding.step1": "点击下方「打开系统设置」",
+        "onboarding.step2": "在列表中找到 ClipBoard Manager",
+        "onboarding.step3": "把右侧开关打开（可能需要解锁）",
+        "onboarding.openPrefs": "打开系统设置",
+        "onboarding.later": "稍后再说",
+
+        // file chooser
+        "file.openWithChooserTitleFormat": "选择应用打开 %@",
+        "file.openWithChooserPrompt": "选择",
+    ]
+
+    static let en: [String: String] = [
+        // common
+        "common.copy": "Copy",
+        "common.copied": "Copied",
+        "common.delete": "Delete",
+        "common.deleted": "Deleted",
+        "common.cancel": "Cancel",
+        "common.done": "Done",
+        "common.save": "Save",
+        "common.close": "Close",
+        "common.back": "Back",
+        "common.unknown": "Unknown",
+        "common.unknownSource": "Unknown source",
+        "common.notSet": "None added",
+        "common.all": "All",
+        "common.today": "Today",
+        "common.yesterday": "Yesterday",
+        "common.preview": "Preview",
+        "common.add": "Add",
+        "common.remove": "Remove",
+        "common.reset": "Reset",
+        "common.allTypes": "All types",
+        "common.search": "Search…",
+        "common.searchContent": "Search content…",
+        "common.semanticSearch": "Semantic search…",
+        "common.searchMode.full": "Text",
+        "common.searchMode.semantic": "Semantic",
+        "common.searchMode.indexing": "Indexing…",
+        "common.clearSearch": "Clear search",
+        "search.semantic.indexing.toast": "Semantic index is still being built — try again shortly",
+        "search.semantic.disabled.toast": "Semantic search is disabled in Settings",
+
+        // types
+        "type.text": "Text",
+        "type.image": "Image",
+        "type.video": "Video",
+        "type.file": "File",
+        "type.url": "Link",
+        "type.rtf": "Rich Text",
+
+        // tags
+        "tag.application": "Application",
+        "tag.installer": "Installer",
+        "tag.dmg": "Disk Image",
+        "tag.ipa": "iOS App",
+        "tag.folder": "Folder",
+        "tag.audio": "Audio",
+        "tag.video": "Video",
+        "tag.image": "Image",
+        "tag.pdf": "PDF",
+        "tag.archive": "Archive",
+        "tag.sourceCode": "Source Code",
+        "tag.spreadsheet": "Spreadsheet",
+        "tag.presentation": "Presentation",
+        "tag.html": "HTML",
+        "tag.json": "JSON",
+        "tag.xml": "XML",
+        "tag.rtfFile": "Rich Text File",
+        "tag.plainText": "Text File",
+        "tag.bundle": "Bundle",
+
+        // remote / source
+        "remote.universalClipboard": "Universal Clipboard",
+        "snippet.sourceApp": "Snippet",
+
+        // list scope
+        "scope.all": "All",
+        "scope.favorites": "Favorites",
+
+        // main window
+        "main.title": "Clipboard History",
+        "main.stat.records": "records",
+        "main.stat.favorites": "favorites",
+        "main.stat.today": "today",
+        "main.empty.title.all": "No clipboard history yet",
+        "main.empty.title.favorites": "No favorites yet",
+        "main.empty.title.noMatch": "No matching content",
+        "main.empty.subtitle.all": "Copy something — text, images, files all work",
+        "main.empty.subtitle.favorites": "Tap ☆ on a row to favorite it",
+        "main.empty.subtitle.noMatch": "Try a different keyword or type",
+        "main.pinnedCountFormat": "Pinned %d",
+
+        // toolbar
+        "toolbar.newSnippet": "New snippet",
+        "toolbar.selectAndMerge": "Select & merge",
+        "toolbar.exitSelection": "Exit selection",
+        "toolbar.trash": "Trash",
+        "toolbar.stats": "Activity",
+        "toolbar.settings": "Settings",
+
+        // selection / merge
+        "selection.selectedFormat": "Selected %d/%d",
+        "selection.selectAll": "Select all",
+        "selection.clear": "Clear",
+        "selection.invert": "Invert",
+        "selection.mergeCountFormat": "Merge %d",
+        "selection.mergedFormat": "Merged %d",
+        "selection.mergedSuffix.deleted": " (originals removed)",
+        "selection.requireTwo": "Select at least two",
+        "selection.requireSameType": "Only same-type items can be merged",
+        "selection.imageMergeDisabled": "Image merge is off (Settings → Merge)",
+        "selection.mergeFailed": "Merge failed",
+        "merge.sourceLabelFormat": "Merged (%d)",
+        "merge.previewTextFormat": "[Merged %d items] ",
+        "merge.previewFileFormat": "[Merged %d files] ",
+        "merge.imageContentFormat": "[Stitched %d images · %dKB]",
+        "merge.imagePlaceholderFormat": "[Image %dKB]",
+        "merge.rtfPlaceholder": "[Rich Text]",
+
+        // merge presets
+        "merge.sep.doubleNewline": "Blank line",
+        "merge.sep.newline": "Newline",
+        "merge.sep.space": "Space",
+        "merge.sep.comma": "Comma",
+        "merge.sep.semicolon": "Semicolon",
+        "merge.sep.tab": "Tab",
+        "merge.sep.custom": "Custom",
+        "merge.dir.vertical": "Vertical",
+        "merge.dir.horizontal": "Horizontal",
+        "merge.bg.transparent": "Transparent",
+        "merge.bg.white": "White",
+        "merge.bg.black": "Black",
+
+        // actions
+        "action.copy": "Copy",
+        "action.preview": "Preview",
+        "action.pin": "Pin",
+        "action.unpin": "Unpin",
+        "action.favorite": "Favorite",
+        "action.unfavorite": "Unfavorite",
+        "action.openInBrowser": "Open in Browser",
+        "action.saveImage": "Save Image…",
+        "action.editTags": "Edit Tags",
+        "tags.title": "Tags",
+        "tags.placeholder": "Add a tag…",
+        "tags.empty": "No tags yet",
+        "action.revealInFinder": "Reveal in Finder",
+        "action.openFile": "Open File",
+        "action.openWith": "Open With…",
+        "action.exportOne": "Export…",
+        "action.delete": "Delete",
+        "action.pinned": "Pinned",
+        "action.unpinned": "Unpinned",
+        "action.favorited": "Added to favorites",
+        "action.unfavorited": "Removed from favorites",
+
+        // settings
+        "settings.title": "Settings",
+        "settings.tab.general": "General",
+        "settings.tab.shortcut": "Shortcuts",
+        "settings.tab.filter": "Filters",
+        "settings.tab.merge": "Merge",
+        "settings.tab.data": "Data",
+
+        // settings: general
+        "settings.language.title": "Language",
+        "settings.language.subtitle": "Switch instantly to preview; saved permanently.",
+        "settings.language.system": "System",
+        "settings.theme.title": "Appearance",
+        "settings.theme.subtitle": "Choose an appearance theme. Applied immediately.",
+        "settings.theme.light": "Light",
+        "settings.theme.dark": "Dark",
+        "settings.theme.system": "System",
+        "settings.window.title": "Window Behavior",
+        "settings.window.launchAtLogin": "Launch at login",
+        "settings.window.launchAtLogin.subtitle": "Start ClipBoard Manager automatically on login",
+        "settings.window.showInDock": "Show in Dock",
+        "settings.window.showInDock.subtitle": "When off, runs as a menu bar app only",
+        "settings.window.menuBarIcon": "Show menu bar icon",
+        "settings.window.menuBarIcon.subtitle": "Quick entry in the right side of the system menu bar",
+        "settings.window.hideFromCapture": "Hide from screen recording",
+        "settings.window.hideFromCapture.subtitle": "Excludes the window from screen recordings, sharing, and screenshots",
+        "settings.window.dynamicIsland": "Dynamic Island",
+        "settings.window.dynamicIsland.subtitle": "A capsule entry below the notch; flashes on copy, expands on click",
+        "settings.window.trimTrailing": "Trim trailing whitespace on copy",
+        "settings.window.trimTrailing.subtitle": "Removes trailing spaces and newlines when re-copying history (handy for code)",
+        "settings.storage.title": "Storage",
+        "settings.storage.maxRecords": "Max records",
+        "settings.storage.maxRecords.subtitle": "Older entries are pruned once the limit is reached",
+        "settings.storage.maxRecordsFormat": "%d records",
+        "settings.storage.maxRecordsUnit": "records",
+        "settings.storage.pollInterval": "Polling interval",
+        "settings.storage.pollInterval.subtitle": "Lower is faster but increases CPU use",
+        "settings.semantic.title": "Semantic Search",
+        "settings.semantic.toggle": "Enable semantic search",
+        "settings.semantic.subtitle": "Find clips by meaning using on-device sentence embeddings — vectors never leave your Mac",
+        "settings.semantic.indexing.title": "Building semantic index",
+        "settings.semantic.indexing.subtitle.format": "Processed %1$d / %2$d historical items",
+        "settings.semantic.indexing.idle": "Ready",
+        "settings.poll.halfSecond": "0.5 s",
+        "settings.poll.oneSecond": "1 s",
+        "settings.poll.twoSeconds": "2 s",
+        "settings.poll.fiveSeconds": "5 s",
+        "settings.fda.title": "Full Disk Access",
+        "settings.fda.subtitle": "Once granted, reading files from Desktop, Downloads, Documents, etc. won't prompt",
+        "settings.fda.openPrefs": "Open System Settings",
+        "settings.fda.viewOnboarding": "View walkthrough again",
+
+        // settings: shortcut
+        "settings.shortcut.group.title": "Global Shortcuts",
+        "settings.shortcut.openMainWindow": "Open main window",
+        "settings.shortcut.openMainWindow.subtitle": "Global hotkey; brings the main window forward",
+        "settings.shortcut.openQuickPaste": "Open quick paste",
+        "settings.shortcut.openQuickPaste.subtitle": "Floating panel at the cursor — multi-select pastes into the focused app",
+        "settings.shortcut.resetTooltip": "Restore default",
+        "settings.shortcut.permission.title": "Permissions",
+        "settings.shortcut.permission.accessibility": "Accessibility",
+        "settings.shortcut.permission.accessibility.subtitle": "Required to synthesize ⌘V; without it Quick Paste only copies to the clipboard",
+        "settings.shortcut.permission.granted": "Granted",
+        "settings.shortcut.permission.notGranted": "Not granted",
+        "settings.shortcut.permission.recheck": "Re-check",
+        "settings.shortcut.permission.grant": "Grant…",
+
+        // settings: filter
+        "settings.filter.link.title": "Links",
+        "settings.filter.stripTracking": "Sanitize links",
+        "settings.filter.stripTracking.subtitle": "Strip utm_*, fbclid, gclid and other trackers from copied http(s) URLs",
+        "settings.filter.apps.title": "Excluded Apps",
+        "settings.filter.apps.subtitle": "Copies from these apps are never recorded",
+        "settings.filter.apps.addButton": "Add app…",
+        "settings.filter.apps.chooserTitle": "Choose app to exclude",
+        "settings.filter.apps.chooserPrompt": "Add",
+        "settings.filter.apps.removedFormat": "Removed app: %@",
+        "settings.filter.apps.addedFormat": "Added %d apps",
+        "settings.filter.types.title": "Excluded Types",
+        "settings.filter.textRules.title": "Text Rules",
+        "settings.filter.textRules.subtitle": "Add multiple rules; any match filters the clip",
+        "settings.filter.textRules.add": "Add rule",
+        "settings.filter.textRules.placeholder": "Text",
+        "settings.filter.textRules.contains": "Contains",
+        "settings.filter.textRules.excludes": "Does not contain",
+
+        // settings: merge
+        "settings.merge.behavior.title": "Merge Behavior",
+        "settings.merge.deleteOriginals": "Delete originals after merging",
+        "settings.merge.deleteOriginals.subtitle": "When on, merging deletes the selected source entries",
+        "settings.merge.enableImageMerge": "Image merging",
+        "settings.merge.enableImageMerge.subtitle": "Stitch multiple images vertically or horizontally",
+        "settings.merge.imageParams.title": "Stitching Parameters",
+        "settings.merge.imageParams.subtitle": "Direction, background and spacing",
+        "settings.merge.imageParams.direction": "Direction",
+        "settings.merge.imageParams.background": "Background",
+        "settings.merge.imageParams.spacing": "Spacing",
+        "settings.merge.textSep.title": "Text / Link / Rich Text Separator",
+        "settings.merge.textSep.subtitle": "When \"Custom\" is selected, \\n is newline and \\t is tab",
+        "settings.merge.textSep.placeholder": "e.g. \\n--\\n",
+        "settings.merge.fileSep.title": "File / Video Separator",
+        "settings.merge.fileSep.subtitle": "Used when merging multiple file paths",
+        "settings.merge.fileSep.placeholder": "e.g. ; ",
+        "settings.merge.previewFormat": "Preview: %@",
+
+        // settings: data
+        "settings.data.trash.title": "Trash",
+        "settings.data.trash.enable": "Enable trash",
+        "settings.data.trash.enable.subtitle": "Deleted entries go to the trash first so you can undo. Off means immediate hard delete.",
+        "settings.data.trash.autoClean": "Auto-clean",
+        "settings.data.trash.autoClean.subtitle": "Trashed items past the retention window are permanently deleted",
+        "settings.data.stats.title": "Statistics",
+        "settings.data.stats.recordCopy": "Record copy counts",
+        "settings.data.stats.recordCopy.subtitle": "When off, new copies are not counted; historical data is kept",
+        "settings.data.retention.title": "Auto-clean",
+        "settings.data.retention.subtitle": "Set retention per type. Pinned/favorited entries are exempt.",
+        "settings.data.retention.cleanNow": "Clean now",
+        "settings.data.retention.cleaned": "Cleaned per rules",
+        "settings.data.export.title": "Export / Clear",
+        "settings.data.export.subtitle": "Back up history, or wipe all records and stats",
+        "settings.data.export.exportButton": "Export to JSON…",
+        "settings.data.export.clearHistory": "Clear history",
+        "settings.data.export.clearedHistory": "History cleared",
+        "settings.data.export.clearStats": "Clear stats",
+        "settings.data.export.clearedStats": "Stats cleared",
+
+        // retention durations
+        "retention.forever": "Forever",
+        "retention.oneDay": "1 day",
+        "retention.threeDays": "3 days",
+        "retention.sevenDays": "7 days",
+        "retention.fourteenDays": "14 days",
+        "retention.thirtyDays": "30 days",
+        "retention.ninetyDays": "90 days",
+        "retention.oneEightyDays": "180 days",
+
+        // export panel
+        "export.title": "Export to JSON",
+        "export.subtitle": "Export clipboard history filtered by your selection",
+        "export.types.title": "Types",
+        "export.types.subtitle": "Select content types to include",
+        "export.range.title": "Date Range",
+        "export.range.from": "From",
+        "export.range.to": "To",
+        "export.range.allTime": "All time",
+        "export.range.today": "Today",
+        "export.range.last7": "Last 7 days",
+        "export.range.last30": "Last 30 days",
+        "export.range.custom": "Custom",
+        "export.favorites.title": "Favorites & Pinned",
+        "export.favoriteScope.all": "All",
+        "export.favoriteScope.favorites": "Favorites only",
+        "export.favoriteScope.pinned": "Pinned only",
+        "export.options.title": "Options",
+        "export.options.includeImage": "Include image data (base64)",
+        "export.options.includeImage.subtitle": "File size grows considerably; off keeps only metadata",
+        "export.willExportFormat": "Will export %d / %d",
+        "export.exportButton": "Export JSON",
+        "export.successFormat": "Exported %d records to %@",
+        "export.failedFormat": "Export failed: %@",
+        "export.savePanel.title": "Export Clipboard History",
+        "export.batchPanel.prompt": "Choose Destination",
+
+        // menu bar
+        "menubar.openSettings": "Open settings",
+        "menubar.openMainWindow": "Open main window",
+        "menubar.empty.noRecords": "No records",
+        "menubar.empty.noMatch": "No matches",
+        "menubar.shortcutHint": "⌘⇧V opens main window",
+        "menubar.recordCountFormat": "%d records",
+
+        // preview popover
+        "preview.cannotImage": "Cannot preview image",
+        "preview.cannotVideo": "Cannot preview video",
+        "preview.detection.timestamp": "Timestamp",
+        "preview.detection.base64": "Base64 decode",
+        "preview.detection.json": "JSON",
+        "preview.utcFormat": "UTC: %@",
+        "preview.localFormat": "Local: %@",
+
+        // snippet editor
+        "snippet.title": "New Snippet",
+        "snippet.placeholder": "Enter content to save…",
+        "snippet.pinAfterSave": "Pin after save",
+        "snippet.savedAndPinned": "Snippet saved and pinned",
+        "snippet.saved": "Snippet saved",
+
+        // quick paste
+        "quickpaste.title": "Quick Paste",
+        "quickpaste.hint.empty": "Click to paste, or multi-select then press the button",
+        "quickpaste.selectedCountFormat": "Selected %d",
+        "quickpaste.paste": "Paste",
+        "quickpaste.pasteInOrderFormat": "Paste in order (%d)",
+        "quickpaste.emptyClipboard": "Clipboard history is empty",
+        "quickpaste.manualPasteHint": "Copied — paste manually with ⌘V; grant Accessibility to auto-paste",
+
+        // trash
+        "trash.title": "Trash",
+        "trash.captionEmpty": "Deleted entries land here first",
+        "trash.captionForeverFormat": "%d items · kept forever",
+        "trash.captionRetentionFormat": "%d items · auto-cleaned after %d days",
+        "trash.empty.title": "Trash is empty",
+        "trash.empty.subtitle": "Items deleted from history show up here and auto-clean on expiry",
+        "trash.emptyButton": "Empty Trash",
+        "trash.emptyDone": "Trash emptied",
+        "trash.deletedAtFormat": "Deleted %@",
+        "trash.expiry.soon": "· cleaning soon",
+        "trash.expiry.hoursFormat": "· in %dh",
+        "trash.expiry.daysFormat": "· in %dd",
+        "trash.restore": "Restore",
+        "trash.restored": "Restored",
+        "trash.purge": "Delete forever",
+        "trash.purged": "Permanently deleted",
+
+        // stats
+        "stats.title": "Activity",
+        "stats.subtitle": "Copy counts measured by local clipboard monitoring",
+        "stats.summary.title": "Summary",
+        "stats.summary.subtitle": "Overview of recent copy activity",
+        "stats.today": "Today",
+        "stats.last7days": "Last 7 days",
+        "stats.last30days": "Last 30 days",
+        "stats.total": "Total",
+        "stats.heatmap.title": "Activity Heatmap",
+        "stats.heatmap.subtitle": "Daily copy activity over the past 53 weeks",
+        "stats.totalCountFormat": "%d copies in the past year",
+        "stats.legend.less": "Less",
+        "stats.legend.more": "More",
+        "stats.tooltipFormat": "%@ · %d copies",
+
+        // onboarding
+        "onboarding.title": "One-time grant, no more permission popups",
+        "onboarding.subtitle": "Let ClipBoard Manager preview any file",
+        "onboarding.body": "When you copy files in protected locations like Desktop, Downloads, Documents, or iCloud Drive, macOS prompts for permission folder by folder.\n\nEnable ClipBoard Manager in System Settings → Privacy & Security → Full Disk Access to silence all such prompts.",
+        "onboarding.step1": "Click \"Open System Settings\" below",
+        "onboarding.step2": "Find ClipBoard Manager in the list",
+        "onboarding.step3": "Toggle the switch on (you may need to unlock)",
+        "onboarding.openPrefs": "Open System Settings",
+        "onboarding.later": "Later",
+
+        // file chooser
+        "file.openWithChooserTitleFormat": "Choose app to open %@",
+        "file.openWithChooserPrompt": "Choose",
+    ]
+}

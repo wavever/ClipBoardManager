@@ -16,14 +16,25 @@ struct SettingsPanelView: View {
     @AppStorage("hideFromCapture") private var hideFromCapture = false
     @AppStorage("trimTrailingWhitespaceOnCopy") private var trimTrailing = false
     @AppStorage("dynamicIslandEnabled") private var dynamicIslandEnabled = false
+    @AppStorage("appearanceTheme") private var appearanceThemeRaw = AppearanceTheme.system.rawValue
+    @AppStorage("appLanguage") private var appLanguageRaw = AppLanguage.system.rawValue
 
     enum Section: String, CaseIterable, Identifiable {
-        case general = "通用"
-        case shortcut = "快捷键"
-        case filter = "过滤"
-        case merge = "合并"
-        case data = "数据"
+        case general
+        case shortcut
+        case filter
+        case merge
+        case data
         var id: Self { self }
+        var localizedTitle: String {
+            switch self {
+            case .general:  return L("settings.tab.general")
+            case .shortcut: return L("settings.tab.shortcut")
+            case .filter:   return L("settings.tab.filter")
+            case .merge:    return L("settings.tab.merge")
+            case .data:     return L("settings.tab.data")
+            }
+        }
     }
 
     var body: some View {
@@ -73,10 +84,10 @@ struct SettingsPanelView: View {
                     .contentShape(Circle())
             }
             .buttonStyle(.plain)
-            .help("返回")
+            .help(L("common.back"))
             .keyboardShortcut(.escape, modifiers: [])
 
-            Text("设置")
+            Text(L("settings.title"))
                 .font(.system(size: 28, weight: .bold))
 
             Spacer()
@@ -89,7 +100,7 @@ struct SettingsPanelView: View {
                 Button {
                     withAnimation(.easeOut(duration: 0.18)) { section = sec }
                 } label: {
-                    Text(sec.rawValue)
+                    Text(sec.localizedTitle)
                         .font(.system(size: 12.5, weight: section == sec ? .semibold : .medium))
                         .foregroundStyle(section == sec ? Color.primary : Color.secondary)
                         .frame(maxWidth: .infinity)
@@ -131,7 +142,9 @@ struct SettingsPanelView: View {
                 menuBarIcon: $menuBarIcon,
                 hideFromCapture: $hideFromCapture,
                 trimTrailing: $trimTrailing,
-                dynamicIslandEnabled: $dynamicIslandEnabled
+                dynamicIslandEnabled: $dynamicIslandEnabled,
+                appearanceThemeRaw: $appearanceThemeRaw,
+                appLanguageRaw: $appLanguageRaw
             )
         case .shortcut:
             ShortcutSection()
@@ -145,8 +158,192 @@ struct SettingsPanelView: View {
     }
 }
 
-// MARK: - Reusable card sections
+// MARK: - Reusable building blocks
+//
+// New row/group pattern (icon + title + subtitle on the left, control flush
+// right) shared across every settings section so toggles, pickers and
+// buttons line up consistently.
 
+/// One row inside a `SettingsGroup` card — colored icon, title, optional
+/// secondary subtitle, and a trailing control (Toggle / Picker / Button …).
+struct SettingsRow<Trailing: View>: View {
+    let icon: String?
+    let iconTint: Color
+    let title: String
+    let subtitle: String?
+    @ViewBuilder var trailing: () -> Trailing
+
+    init(
+        icon: String? = nil,
+        iconTint: Color = .accentColor,
+        title: String,
+        subtitle: String? = nil,
+        @ViewBuilder trailing: @escaping () -> Trailing
+    ) {
+        self.icon = icon
+        self.iconTint = iconTint
+        self.title = title
+        self.subtitle = subtitle
+        self.trailing = trailing
+    }
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 14) {
+            if let icon {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .fill(iconTint.opacity(0.16))
+                    Image(systemName: icon)
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(iconTint)
+                }
+                .frame(width: 32, height: 32)
+            }
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.system(size: 14, weight: .medium))
+                if let subtitle {
+                    Text(subtitle)
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            Spacer(minLength: 12)
+            trailing()
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+    }
+}
+
+/// Card container that groups related rows under an optional section header.
+/// Children must be `SettingsRow` (or any view) and are automatically
+/// separated by a thin divider, matching the design mockup.
+struct SettingsGroup<Content: View>: View {
+    let headerIcon: String?
+    let headerTitle: String?
+    let headerTint: Color
+    @ViewBuilder var content: () -> Content
+
+    init(
+        icon: String? = nil,
+        title: String? = nil,
+        tint: Color = .accentColor,
+        @ViewBuilder content: @escaping () -> Content
+    ) {
+        self.headerIcon = icon
+        self.headerTitle = title
+        self.headerTint = tint
+        self.content = content
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            if let headerTitle {
+                HStack(spacing: 8) {
+                    if let headerIcon {
+                        Image(systemName: headerIcon)
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(headerTint)
+                    }
+                    Text(headerTitle)
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(.primary)
+                }
+                .padding(.leading, 4)
+            }
+
+            _VariadicView.Tree(SettingsGroupLayout()) {
+                content()
+            }
+            .background(
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(.regularMaterial)
+                    .opacity(0.7)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .strokeBorder(.separator.opacity(0.4), lineWidth: 0.5)
+            )
+            .shadow(color: .black.opacity(0.04), radius: 6, y: 2)
+        }
+    }
+}
+
+private struct SettingsGroupLayout: _VariadicView_MultiViewRoot {
+    @ViewBuilder
+    func body(children: _VariadicView.Children) -> some View {
+        let items = Array(children)
+        VStack(spacing: 0) {
+            ForEach(items.indices, id: \.self) { idx in
+                items[idx]
+                if idx < items.count - 1 {
+                    Divider()
+                        .padding(.leading, 16)
+                        .opacity(0.5)
+                }
+            }
+        }
+    }
+}
+
+/// Pill-style segmented selector used for language / theme pickers. Mirrors
+/// the design mockup: a tinted rounded pill for the active option, plain
+/// hover background for inactive ones.
+struct SettingsSegmented<Value: Hashable>: View {
+    struct Option: Identifiable {
+        let value: Value
+        let title: String
+        let icon: String?
+        var id: Value { value }
+    }
+
+    @Binding var selection: Value
+    let options: [Option]
+    var tint: Color = .accentColor
+
+    var body: some View {
+        HStack(spacing: 4) {
+            ForEach(options) { opt in
+                Button {
+                    withAnimation(.easeOut(duration: 0.15)) { selection = opt.value }
+                } label: {
+                    HStack(spacing: 6) {
+                        if let icon = opt.icon {
+                            Image(systemName: icon)
+                                .font(.system(size: 11, weight: .semibold))
+                        }
+                        Text(opt.title)
+                            .font(.system(size: 12.5, weight: selection == opt.value ? .semibold : .medium))
+                    }
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 8)
+                    .frame(maxWidth: .infinity)
+                    .foregroundStyle(selection == opt.value ? Color.white : Color.primary)
+                    .background(
+                        RoundedRectangle(cornerRadius: 7, style: .continuous)
+                            .fill(selection == opt.value ? AnyShapeStyle(tint) : AnyShapeStyle(Color.clear))
+                    )
+                    .contentShape(RoundedRectangle(cornerRadius: 7))
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(3)
+        .background(
+            RoundedRectangle(cornerRadius: 9, style: .continuous)
+                .fill(.secondary.opacity(0.10))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 9, style: .continuous)
+                .strokeBorder(.separator.opacity(0.3), lineWidth: 0.5)
+        )
+    }
+}
+
+/// Standalone titled card — used for sections that don't fit the row layout
+/// (free-form button clusters, full-width pickers, lists with add/remove).
 struct SettingCard<Control: View>: View {
     let title: String
     let subtitle: String?
@@ -161,7 +358,7 @@ struct SettingCard<Control: View>: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text(title)
-                .font(.system(size: 15, weight: .semibold))
+                .font(.system(size: 14, weight: .semibold))
             if let subtitle {
                 Text(subtitle)
                     .font(.system(size: 12))
@@ -195,79 +392,213 @@ private struct GeneralSection: View {
     @Binding var hideFromCapture: Bool
     @Binding var trimTrailing: Bool
     @Binding var dynamicIslandEnabled: Bool
+    @Binding var appearanceThemeRaw: String
+    @Binding var appLanguageRaw: String
 
     @AppStorage("fdaOnboardingDismissed") private var fdaOnboardingDismissed = false
     @ObservedObject private var nav = AppNavigation.shared
+    @EnvironmentObject private var vm: ClipboardViewModel
+
+    private var semanticFeatureBinding: Binding<Bool> {
+        Binding(
+            get: { vm.semanticFeatureEnabled },
+            set: { vm.setSemanticFeatureEnabled($0) }
+        )
+    }
+
+    private var languageBinding: Binding<AppLanguage> {
+        Binding(
+            get: { AppLanguage(rawValue: appLanguageRaw) ?? .system },
+            set: { appLanguageRaw = $0.rawValue }
+        )
+    }
+    private var themeBinding: Binding<AppearanceTheme> {
+        Binding(
+            get: { AppearanceTheme(rawValue: appearanceThemeRaw) ?? .system },
+            set: { appearanceThemeRaw = $0.rawValue }
+        )
+    }
 
     var body: some View {
-        VStack(spacing: 14) {
-            SettingCard(title: "完全磁盘访问", subtitle: "授权后读取桌面、下载、文稿等位置的文件不会再弹窗") {
+        VStack(spacing: 18) {
+            // Language picker — keep first so users can recover from accidental switches.
+            SettingsGroup(icon: "globe", title: L("settings.language.title"), tint: .blue) {
+                SettingsRow(
+                    icon: "character.bubble",
+                    iconTint: .blue,
+                    title: L("settings.language.title"),
+                    subtitle: L("settings.language.subtitle")
+                ) {
+                    SettingsSegmented(
+                        selection: languageBinding,
+                        options: [
+                            .init(value: .zh,     title: "中文",    icon: nil),
+                            .init(value: .en,     title: "English", icon: nil),
+                            .init(value: .system, title: L("settings.language.system"), icon: nil),
+                        ],
+                        tint: .blue
+                    )
+                    .frame(width: 320)
+                }
+            }
+
+            // Appearance theme.
+            SettingsGroup(icon: "paintpalette", title: L("settings.theme.title"), tint: .purple) {
+                SettingsRow(
+                    icon: "moon.stars",
+                    iconTint: .purple,
+                    title: L("settings.theme.title"),
+                    subtitle: L("settings.theme.subtitle")
+                ) {
+                    SettingsSegmented(
+                        selection: themeBinding,
+                        options: [
+                            .init(value: .light,  title: L("settings.theme.light"),  icon: "sun.max"),
+                            .init(value: .dark,   title: L("settings.theme.dark"),   icon: "moon"),
+                            .init(value: .system, title: L("settings.theme.system"), icon: "desktopcomputer"),
+                        ],
+                        tint: .purple
+                    )
+                    .frame(width: 320)
+                }
+            }
+
+            // Window behaviour.
+            SettingsGroup(icon: "macwindow", title: L("settings.window.title"), tint: .blue) {
+                SettingsRow(
+                    icon: "power",
+                    iconTint: .orange,
+                    title: L("settings.window.launchAtLogin"),
+                    subtitle: L("settings.window.launchAtLogin.subtitle")
+                ) {
+                    Toggle("", isOn: $launchAtLogin).labelsHidden().toggleStyle(.switch)
+                }
+                SettingsRow(
+                    icon: "dock.rectangle",
+                    iconTint: .blue,
+                    title: L("settings.window.showInDock"),
+                    subtitle: L("settings.window.showInDock.subtitle")
+                ) {
+                    Toggle("", isOn: $showInDock).labelsHidden().toggleStyle(.switch)
+                }
+                SettingsRow(
+                    icon: "menubar.rectangle",
+                    iconTint: .indigo,
+                    title: L("settings.window.menuBarIcon"),
+                    subtitle: L("settings.window.menuBarIcon.subtitle")
+                ) {
+                    Toggle("", isOn: $menuBarIcon).labelsHidden().toggleStyle(.switch)
+                }
+                SettingsRow(
+                    icon: "eye.slash",
+                    iconTint: .pink,
+                    title: L("settings.window.hideFromCapture"),
+                    subtitle: L("settings.window.hideFromCapture.subtitle")
+                ) {
+                    Toggle("", isOn: $hideFromCapture).labelsHidden().toggleStyle(.switch)
+                }
+                SettingsRow(
+                    icon: "capsule.portrait",
+                    iconTint: .teal,
+                    title: L("settings.window.dynamicIsland"),
+                    subtitle: L("settings.window.dynamicIsland.subtitle")
+                ) {
+                    Toggle("", isOn: $dynamicIslandEnabled)
+                        .labelsHidden()
+                        .toggleStyle(.switch)
+                        .onChange(of: dynamicIslandEnabled) { _, newValue in
+                            DynamicIslandController.shared.setEnabled(newValue)
+                        }
+                }
+                SettingsRow(
+                    icon: "scissors",
+                    iconTint: .green,
+                    title: L("settings.window.trimTrailing"),
+                    subtitle: L("settings.window.trimTrailing.subtitle")
+                ) {
+                    Toggle("", isOn: $trimTrailing).labelsHidden().toggleStyle(.switch)
+                }
+            }
+
+            // Storage.
+            SettingsGroup(icon: "internaldrive", title: L("settings.storage.title"), tint: .indigo) {
+                SettingsRow(
+                    icon: "tray.full",
+                    iconTint: .indigo,
+                    title: L("settings.storage.maxRecords"),
+                    subtitle: L("settings.storage.maxRecords.subtitle")
+                ) {
+                    MaxRecordsField(value: $maxRecords)
+                }
+                SettingsRow(
+                    icon: "timer",
+                    iconTint: .cyan,
+                    title: L("settings.storage.pollInterval"),
+                    subtitle: L("settings.storage.pollInterval.subtitle")
+                ) {
+                    Picker("", selection: $pollInterval) {
+                        Text(L("settings.poll.halfSecond")).tag(0.5)
+                        Text(L("settings.poll.oneSecond")).tag(1.0)
+                        Text(L("settings.poll.twoSeconds")).tag(2.0)
+                        Text(L("settings.poll.fiveSeconds")).tag(5.0)
+                    }
+                    .labelsHidden()
+                    .pickerStyle(.menu)
+                    .frame(width: 110)
+                }
+            }
+
+            // Semantic search — toggles the entire feature and surfaces the
+            // backfill progress so users know why the search bar's semantic
+            // button is unavailable on first launch / after a clear.
+            SettingsGroup(icon: "sparkle", title: L("settings.semantic.title"), tint: .purple) {
+                SettingsRow(
+                    icon: "wand.and.sparkles",
+                    iconTint: .purple,
+                    title: L("settings.semantic.toggle"),
+                    subtitle: L("settings.semantic.subtitle")
+                ) {
+                    Toggle("", isOn: semanticFeatureBinding)
+                        .labelsHidden()
+                        .toggleStyle(.switch)
+                }
+                if vm.isBackfillingEmbeddings {
+                    SettingsRow(
+                        icon: "arrow.triangle.2.circlepath",
+                        iconTint: .orange,
+                        title: L("settings.semantic.indexing.title"),
+                        subtitle: String(
+                            format: L("settings.semantic.indexing.subtitle.format"),
+                            vm.backfillCompleted,
+                            vm.backfillTotal
+                        )
+                    ) {
+                        ProgressView()
+                            .progressViewStyle(.circular)
+                            .controlSize(.small)
+                    }
+                }
+            }
+
+            // Full Disk Access — free-form card; doesn't fit the row layout.
+            SettingCard(
+                title: L("settings.fda.title"),
+                subtitle: L("settings.fda.subtitle")
+            ) {
                 HStack(spacing: 10) {
                     Button {
                         FullDiskAccessOnboardingView.openFullDiskAccessPane()
                     } label: {
-                        Label("打开系统设置", systemImage: "arrow.up.right.square")
+                        Label(L("settings.fda.openPrefs"), systemImage: "arrow.up.right.square")
                     }
                     Button {
                         fdaOnboardingDismissed = false
                         nav.showList()
                     } label: {
-                        Label("重新查看引导", systemImage: "questionmark.circle")
+                        Label(L("settings.fda.viewOnboarding"), systemImage: "questionmark.circle")
                     }
                     Spacer()
                 }
-            }
-            SettingCard(title: "登录时启动", subtitle: "登录系统时自动运行 ClipBoard Manager") {
-                Toggle("", isOn: $launchAtLogin).labelsHidden().toggleStyle(.switch)
-            }
-            SettingCard(title: "在 Dock 中显示", subtitle: "关闭后应用以菜单栏方式存在，不占用 Dock") {
-                Toggle("", isOn: $showInDock).labelsHidden().toggleStyle(.switch)
-            }
-            SettingCard(title: "显示菜单栏图标", subtitle: "在系统菜单栏右侧展示快捷入口") {
-                Toggle("", isOn: $menuBarIcon).labelsHidden().toggleStyle(.switch)
-            }
-            SettingCard(
-                title: "屏幕录制中隐藏",
-                subtitle: "开启后剪贴板窗口不会出现在录屏、屏幕共享或截图中"
-            ) {
-                Toggle("", isOn: $hideFromCapture).labelsHidden().toggleStyle(.switch)
-            }
-            SettingCard(
-                title: "灵动岛",
-                subtitle: "在屏幕顶部刘海下方常驻一个胶囊入口；每次复制会有提示，点击展开内容面板"
-            ) {
-                Toggle("", isOn: $dynamicIslandEnabled)
-                    .labelsHidden()
-                    .toggleStyle(.switch)
-                    .onChange(of: dynamicIslandEnabled) { _, newValue in
-                        DynamicIslandController.shared.setEnabled(newValue)
-                    }
-            }
-            SettingCard(
-                title: "复制时清理末尾空白",
-                subtitle: "再次复制历史条目时自动去除末尾的空格、换行，常见于代码片段"
-            ) {
-                Toggle("", isOn: $trimTrailing).labelsHidden().toggleStyle(.switch)
-            }
-            SettingCard(title: "最大记录数", subtitle: "超过该上限时会自动清理最旧的内容") {
-                HStack {
-                    Text("\(maxRecords) 条")
-                        .font(.system(size: 14, weight: .medium, design: .monospaced))
-                        .foregroundStyle(.primary)
-                    Spacer()
-                    Stepper("", value: $maxRecords, in: 50...5000, step: 50)
-                        .labelsHidden()
-                }
-            }
-            SettingCard(title: "监听间隔", subtitle: "降低间隔反应更快，但会增加 CPU 占用") {
-                Picker("", selection: $pollInterval) {
-                    Text("0.5 秒").tag(0.5)
-                    Text("1 秒").tag(1.0)
-                    Text("2 秒").tag(2.0)
-                    Text("5 秒").tag(5.0)
-                }
-                .labelsHidden()
-                .pickerStyle(.segmented)
             }
         }
     }
@@ -279,53 +610,73 @@ private struct ShortcutSection: View {
     @State private var accessibilityTrusted: Bool = AutoPasteService.isTrusted
 
     var body: some View {
-        VStack(spacing: 14) {
-            ForEach(AppShortcut.allCases) { shortcut in
-                SettingCard(title: shortcut.displayName, subtitle: shortcut.subtitle) {
-                    HStack {
-                        KeyboardShortcuts.Recorder(for: shortcut.name)
-                        Spacer()
-                        Button {
-                            KeyboardShortcuts.reset(shortcut.name)
-                        } label: {
-                            Label("重置", systemImage: "arrow.counterclockwise")
-                                .font(.system(size: 11))
+        VStack(spacing: 18) {
+            SettingsGroup(icon: "command", title: L("settings.shortcut.group.title"), tint: .accentColor) {
+                ForEach(AppShortcut.allCases) { shortcut in
+                    SettingsRow(
+                        icon: shortcut.icon,
+                        iconTint: .accentColor,
+                        title: shortcut.displayName,
+                        subtitle: shortcut.subtitle
+                    ) {
+                        HStack(spacing: 8) {
+                            KeyboardShortcuts.Recorder(for: shortcut.name)
+                            Button {
+                                KeyboardShortcuts.reset(shortcut.name)
+                            } label: {
+                                Image(systemName: "arrow.counterclockwise")
+                                    .font(.system(size: 11, weight: .semibold))
+                            }
+                            .buttonStyle(.borderless)
+                            .help(L("settings.shortcut.resetTooltip"))
                         }
-                        .buttonStyle(.borderless)
-                        .help("恢复为默认值")
                     }
                 }
             }
 
-            SettingCard(
-                title: "辅助功能权限",
-                subtitle: "快速粘贴需要此权限才能自动模拟 ⌘V；未授权时会复制到剪贴板由你手动粘贴"
-            ) {
-                HStack(spacing: 10) {
-                    Image(systemName: accessibilityTrusted
-                          ? "checkmark.seal.fill"
-                          : "exclamationmark.triangle.fill")
-                        .foregroundStyle(accessibilityTrusted ? .green : .orange)
-                    Text(accessibilityTrusted ? "已授权" : "尚未授权")
-                        .font(.system(size: 13))
-                    Spacer()
-                    Button {
-                        AutoPasteService.requestTrust()
-                        // Re-check on next runloop tick — the user typically
-                        // toggles in System Settings then returns to the app.
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                            accessibilityTrusted = AutoPasteService.isTrusted
+            SettingsGroup(icon: "lock.shield", title: L("settings.shortcut.permission.title"), tint: .orange) {
+                SettingsRow(
+                    icon: accessibilityTrusted ? "checkmark.seal.fill" : "exclamationmark.triangle.fill",
+                    iconTint: accessibilityTrusted ? .green : .orange,
+                    title: L("settings.shortcut.permission.accessibility"),
+                    subtitle: L("settings.shortcut.permission.accessibility.subtitle")
+                ) {
+                    HStack(spacing: 8) {
+                        Text(accessibilityTrusted
+                             ? L("settings.shortcut.permission.granted")
+                             : L("settings.shortcut.permission.notGranted"))
+                            .font(.system(size: 12))
+                            .foregroundStyle(.secondary)
+                        Button {
+                            AutoPasteService.requestTrust()
+                            // Re-check on next runloop tick — the user typically
+                            // toggles in System Settings then returns to the app.
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                                accessibilityTrusted = AutoPasteService.isTrusted
+                            }
+                        } label: {
+                            Label(
+                                accessibilityTrusted
+                                    ? L("settings.shortcut.permission.recheck")
+                                    : L("settings.shortcut.permission.grant"),
+                                systemImage: accessibilityTrusted
+                                    ? "arrow.clockwise"
+                                    : "arrow.up.right.square"
+                            )
+                            .font(.system(size: 12))
                         }
-                    } label: {
-                        Label(
-                            accessibilityTrusted ? "重新检测" : "授权…",
-                            systemImage: accessibilityTrusted
-                                ? "arrow.clockwise"
-                                : "arrow.up.right.square"
-                        )
                     }
                 }
             }
+        }
+    }
+}
+
+private extension AppShortcut {
+    var icon: String {
+        switch self {
+        case .openMainWindow: return "rectangle.inset.filled.on.rectangle"
+        case .openQuickPaste: return "bolt.fill"
         }
     }
 }
@@ -336,30 +687,31 @@ private struct FilterSection: View {
     @ObservedObject private var store = FilterSettingsStore.shared
 
     var body: some View {
-        VStack(spacing: 14) {
-            urlCleanupCard
+        VStack(spacing: 18) {
+            SettingsGroup(icon: "link.badge.plus", title: L("settings.filter.link.title"), tint: .blue) {
+                SettingsRow(
+                    icon: "link",
+                    iconTint: .blue,
+                    title: L("settings.filter.stripTracking"),
+                    subtitle: L("settings.filter.stripTracking.subtitle")
+                ) {
+                    Toggle("", isOn: $store.stripURLTracking)
+                        .labelsHidden()
+                        .toggleStyle(.switch)
+                }
+            }
+
             appsCard
             typesCard
             textRulesCard
         }
     }
 
-    private var urlCleanupCard: some View {
-        SettingCard(
-            title: "净化链接",
-            subtitle: "复制 http(s) 链接时自动去除 utm_*、fbclid、gclid 等跟踪参数"
-        ) {
-            Toggle("", isOn: $store.stripURLTracking)
-                .labelsHidden()
-                .toggleStyle(.switch)
-        }
-    }
-
     private var appsCard: some View {
-        SettingCard(title: "排除的应用", subtitle: "来自这些应用的复制内容不会被记录") {
+        SettingCard(title: L("settings.filter.apps.title"), subtitle: L("settings.filter.apps.subtitle")) {
             VStack(alignment: .leading, spacing: 8) {
                 if store.excludedApps.isEmpty {
-                    Text("尚未添加")
+                    Text(L("common.notSet"))
                         .font(.system(size: 12))
                         .foregroundStyle(.secondary)
                 } else {
@@ -385,13 +737,17 @@ private struct FilterSection: View {
                             Spacer()
                             Button {
                                 store.excludedApps.removeAll { $0.bundleId == app.bundleId }
-                                ToastCenter.shared.show("已移除应用：\(app.name)", systemImage: "minus.circle.fill", tint: .orange)
+                                ToastCenter.shared.show(
+                                    L("settings.filter.apps.removedFormat", app.name),
+                                    systemImage: "minus.circle.fill",
+                                    tint: .orange
+                                )
                             } label: {
                                 Image(systemName: "minus.circle.fill")
                                     .foregroundStyle(.red)
                             }
                             .buttonStyle(.plain)
-                            .help("移除")
+                            .help(L("common.remove"))
                         }
                         .padding(.vertical, 6)
                         .padding(.horizontal, 8)
@@ -406,7 +762,7 @@ private struct FilterSection: View {
                     Button {
                         addApp()
                     } label: {
-                        Label("添加应用…", systemImage: "plus")
+                        Label(L("settings.filter.apps.addButton"), systemImage: "plus")
                     }
                 }
             }
@@ -414,34 +770,33 @@ private struct FilterSection: View {
     }
 
     private var typesCard: some View {
-        SettingCard(title: "排除的类型", subtitle: "勾选后该类型的内容不会进入历史") {
-            VStack(spacing: 6) {
-                ForEach(ClipboardItemType.allCases, id: \.self) { type in
-                    HStack {
-                        Label(type.displayName, systemImage: type.icon)
-                        Spacer()
-                        Toggle("", isOn: Binding(
-                            get: { store.excludedTypes.contains(type) },
-                            set: { isOn in
-                                if isOn { store.excludedTypes.insert(type) }
-                                else { store.excludedTypes.remove(type) }
-                            }
-                        ))
-                        .labelsHidden()
-                        .toggleStyle(.switch)
-                        .controlSize(.small)
-                    }
-                    .padding(.vertical, 4)
+        SettingsGroup(icon: "square.grid.2x2", title: L("settings.filter.types.title"), tint: .pink) {
+            ForEach(ClipboardItemType.allCases, id: \.self) { type in
+                SettingsRow(
+                    icon: type.icon,
+                    iconTint: .pink,
+                    title: type.displayName,
+                    subtitle: nil
+                ) {
+                    Toggle("", isOn: Binding(
+                        get: { store.excludedTypes.contains(type) },
+                        set: { isOn in
+                            if isOn { store.excludedTypes.insert(type) }
+                            else { store.excludedTypes.remove(type) }
+                        }
+                    ))
+                    .labelsHidden()
+                    .toggleStyle(.switch)
                 }
             }
         }
     }
 
     private var textRulesCard: some View {
-        SettingCard(title: "文本规则", subtitle: "可添加多条规则；任一规则匹配即被过滤") {
+        SettingCard(title: L("settings.filter.textRules.title"), subtitle: L("settings.filter.textRules.subtitle")) {
             VStack(spacing: 8) {
                 if store.textFilters.isEmpty {
-                    Text("尚未添加")
+                    Text(L("common.notSet"))
                         .font(.system(size: 12))
                         .foregroundStyle(.secondary)
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -456,7 +811,7 @@ private struct FilterSection: View {
                             .labelsHidden()
                             .frame(width: 130)
 
-                            TextField("文本", text: $rule.text)
+                            TextField(L("settings.filter.textRules.placeholder"), text: $rule.text)
                                 .textFieldStyle(.roundedBorder)
 
                             Button {
@@ -466,7 +821,7 @@ private struct FilterSection: View {
                                     .foregroundStyle(.red)
                             }
                             .buttonStyle(.plain)
-                            .help("移除")
+                            .help(L("common.remove"))
                         }
                     }
                 }
@@ -475,7 +830,7 @@ private struct FilterSection: View {
                     Button {
                         store.textFilters.append(TextFilterRule(mode: .contains, text: ""))
                     } label: {
-                        Label("添加规则", systemImage: "plus")
+                        Label(L("settings.filter.textRules.add"), systemImage: "plus")
                     }
                 }
             }
@@ -491,8 +846,8 @@ private struct FilterSection: View {
 
     private func addApp() {
         let panel = NSOpenPanel()
-        panel.title = "选择要排除的应用"
-        panel.prompt = "添加"
+        panel.title = L("settings.filter.apps.chooserTitle")
+        panel.prompt = L("settings.filter.apps.chooserPrompt")
         panel.allowedContentTypes = [.application]
         panel.directoryURL = URL(fileURLWithPath: "/Applications")
         panel.allowsMultipleSelection = true
@@ -513,7 +868,7 @@ private struct FilterSection: View {
             }
         }
         if added > 0 {
-            ToastCenter.shared.show("已添加 \(added) 个应用")
+            ToastCenter.shared.show(L("settings.filter.apps.addedFormat", added))
         }
     }
 }
@@ -524,52 +879,38 @@ private struct MergeSection: View {
     @ObservedObject private var store = MergeSettingsStore.shared
 
     var body: some View {
-        VStack(spacing: 14) {
-            SettingCard(title: "合并后处理", subtitle: "开启后，合并将删除被选中的原条目；关闭则保留原条目") {
-                Toggle("", isOn: $store.deleteOriginals)
-                    .labelsHidden()
-                    .toggleStyle(.switch)
+        VStack(spacing: 18) {
+            SettingsGroup(icon: "square.stack.3d.up", title: L("settings.merge.behavior.title"), tint: .accentColor) {
+                SettingsRow(
+                    icon: "trash",
+                    iconTint: .red,
+                    title: L("settings.merge.deleteOriginals"),
+                    subtitle: L("settings.merge.deleteOriginals.subtitle")
+                ) {
+                    Toggle("", isOn: $store.deleteOriginals)
+                        .labelsHidden()
+                        .toggleStyle(.switch)
+                }
+                SettingsRow(
+                    icon: "photo.on.rectangle.angled",
+                    iconTint: .accentColor,
+                    title: L("settings.merge.enableImageMerge"),
+                    subtitle: L("settings.merge.enableImageMerge.subtitle")
+                ) {
+                    Toggle("", isOn: $store.enableImageMerge)
+                        .labelsHidden()
+                        .toggleStyle(.switch)
+                }
             }
 
-            SettingCard(
-                title: "文本 / 链接 / 富文本 分隔符",
-                subtitle: "选择「自定义」时，可使用 \\n 表示换行、\\t 表示制表符"
-            ) {
-                separatorEditor(
-                    selection: $store.textSeparator,
-                    custom: $store.textCustomSeparator,
-                    placeholder: "例如：\\n--\\n"
-                )
-            }
-
-            SettingCard(
-                title: "文件 / 视频 分隔符",
-                subtitle: "用于合并多条文件路径"
-            ) {
-                separatorEditor(
-                    selection: $store.fileSeparator,
-                    custom: $store.fileCustomSeparator,
-                    placeholder: "例如：; "
-                )
-            }
-
-            SettingCard(
-                title: "图片合并",
-                subtitle: "启用后即可对多张图片进行拼接（纵向或横向）"
-            ) {
-                VStack(spacing: 12) {
-                    HStack {
-                        Text("启用图片合并")
-                            .font(.system(size: 13))
-                        Spacer()
-                        Toggle("", isOn: $store.enableImageMerge)
-                            .labelsHidden()
-                            .toggleStyle(.switch)
-                    }
-                    if store.enableImageMerge {
-                        Divider().opacity(0.4)
+            if store.enableImageMerge {
+                SettingCard(
+                    title: L("settings.merge.imageParams.title"),
+                    subtitle: L("settings.merge.imageParams.subtitle")
+                ) {
+                    VStack(spacing: 12) {
                         HStack {
-                            Text("方向").font(.system(size: 13))
+                            Text(L("settings.merge.imageParams.direction")).font(.system(size: 13))
                             Spacer()
                             Picker("", selection: $store.imageDirection) {
                                 ForEach(ImageMergeDirection.allCases) { dir in
@@ -581,7 +922,7 @@ private struct MergeSection: View {
                             .frame(width: 220)
                         }
                         HStack {
-                            Text("背景色").font(.system(size: 13))
+                            Text(L("settings.merge.imageParams.background")).font(.system(size: 13))
                             Spacer()
                             Picker("", selection: $store.imageBackground) {
                                 ForEach(ImageMergeBackground.allCases) { bg in
@@ -593,7 +934,7 @@ private struct MergeSection: View {
                             .frame(width: 220)
                         }
                         HStack {
-                            Text("间距")
+                            Text(L("settings.merge.imageParams.spacing"))
                                 .font(.system(size: 13))
                             Spacer()
                             Text("\(Int(store.imageSpacing)) px")
@@ -605,6 +946,28 @@ private struct MergeSection: View {
                         }
                     }
                 }
+            }
+
+            SettingCard(
+                title: L("settings.merge.textSep.title"),
+                subtitle: L("settings.merge.textSep.subtitle")
+            ) {
+                separatorEditor(
+                    selection: $store.textSeparator,
+                    custom: $store.textCustomSeparator,
+                    placeholder: L("settings.merge.textSep.placeholder")
+                )
+            }
+
+            SettingCard(
+                title: L("settings.merge.fileSep.title"),
+                subtitle: L("settings.merge.fileSep.subtitle")
+            ) {
+                separatorEditor(
+                    selection: $store.fileSeparator,
+                    custom: $store.fileCustomSeparator,
+                    placeholder: L("settings.merge.fileSep.placeholder")
+                )
             }
         }
     }
@@ -629,7 +992,7 @@ private struct MergeSection: View {
                 TextField(placeholder, text: custom)
                     .textFieldStyle(.roundedBorder)
             } else {
-                Text("预览：\(previewLabel(for: selection.wrappedValue))")
+                Text(L("settings.merge.previewFormat", previewLabel(for: selection.wrappedValue)))
                     .font(.system(size: 11, design: .monospaced))
                     .foregroundStyle(.secondary)
             }
@@ -657,62 +1020,68 @@ private struct DataSection: View {
     @ObservedObject private var stats = CopyStatsStore.shared
     @ObservedObject private var filters = FilterSettingsStore.shared
 
-    private let retentionOptions: [(value: Int, label: String)] = [
-        (0, "永久"), (1, "1 天"), (7, "7 天"),
-        (30, "30 天"), (90, "90 天"), (180, "180 天")
-    ]
+    private var retentionOptions: [(value: Int, label: String)] {
+        [
+            (0, L("retention.forever")), (1, L("retention.oneDay")), (7, L("retention.sevenDays")),
+            (30, L("retention.thirtyDays")), (90, L("retention.ninetyDays")), (180, L("retention.oneEightyDays"))
+        ]
+    }
 
-    private let trashRetentionOptions: [(value: Int, label: String)] = [
-        (1, "1 天"), (3, "3 天"), (7, "7 天"),
-        (14, "14 天"), (30, "30 天"), (0, "永久")
-    ]
+    private var trashRetentionOptions: [(value: Int, label: String)] {
+        [
+            (1, L("retention.oneDay")), (3, L("retention.threeDays")), (7, L("retention.sevenDays")),
+            (14, L("retention.fourteenDays")), (30, L("retention.thirtyDays")), (0, L("retention.forever"))
+        ]
+    }
 
     var body: some View {
-        VStack(spacing: 14) {
-            SettingCard(
-                title: "启用垃圾桶",
-                subtitle: "开启后，删除的条目会先进入垃圾桶，便于反悔。关闭则直接彻底删除"
-            ) {
-                VStack(spacing: 10) {
-                    HStack {
-                        Text("启用")
-                            .font(.system(size: 13))
-                        Spacer()
-                        Toggle("", isOn: $filters.trashEnabled)
-                            .labelsHidden()
-                            .toggleStyle(.switch)
-                    }
-                    if filters.trashEnabled {
-                        Divider().opacity(0.4)
-                        HStack {
-                            Text("自动清理")
-                                .font(.system(size: 13))
-                            Spacer()
-                            Picker("", selection: $filters.trashRetentionDays) {
-                                ForEach(trashRetentionOptions, id: \.value) { opt in
-                                    Text(opt.label).tag(opt.value)
-                                }
+        VStack(spacing: 18) {
+            SettingsGroup(icon: "trash", title: L("settings.data.trash.title"), tint: .orange) {
+                SettingsRow(
+                    icon: "trash.circle",
+                    iconTint: .orange,
+                    title: L("settings.data.trash.enable"),
+                    subtitle: L("settings.data.trash.enable.subtitle")
+                ) {
+                    Toggle("", isOn: $filters.trashEnabled)
+                        .labelsHidden()
+                        .toggleStyle(.switch)
+                }
+                if filters.trashEnabled {
+                    SettingsRow(
+                        icon: "clock.arrow.circlepath",
+                        iconTint: .orange,
+                        title: L("settings.data.trash.autoClean"),
+                        subtitle: L("settings.data.trash.autoClean.subtitle")
+                    ) {
+                        Picker("", selection: $filters.trashRetentionDays) {
+                            ForEach(trashRetentionOptions, id: \.value) { opt in
+                                Text(opt.label).tag(opt.value)
                             }
-                            .labelsHidden()
-                            .pickerStyle(.menu)
-                            .frame(width: 110)
                         }
+                        .labelsHidden()
+                        .pickerStyle(.menu)
+                        .frame(width: 110)
                     }
                 }
             }
 
-            SettingCard(
-                title: "记录拷贝次数",
-                subtitle: "关闭后将不再统计新发生的复制行为，已有数据保留"
-            ) {
-                Toggle("", isOn: $stats.enabled)
-                    .labelsHidden()
-                    .toggleStyle(.switch)
+            SettingsGroup(icon: "chart.bar.xaxis", title: L("settings.data.stats.title"), tint: .accentColor) {
+                SettingsRow(
+                    icon: "chart.line.uptrend.xyaxis",
+                    iconTint: .accentColor,
+                    title: L("settings.data.stats.recordCopy"),
+                    subtitle: L("settings.data.stats.recordCopy.subtitle")
+                ) {
+                    Toggle("", isOn: $stats.enabled)
+                        .labelsHidden()
+                        .toggleStyle(.switch)
+                }
             }
 
             SettingCard(
-                title: "自动清理",
-                subtitle: "按类型设定保留时长，超期后自动删除。置顶 / 收藏 的条目永远保留"
+                title: L("settings.data.retention.title"),
+                subtitle: L("settings.data.retention.subtitle")
             ) {
                 VStack(spacing: 6) {
                     ForEach(ClipboardItemType.allCases, id: \.self) { type in
@@ -727,7 +1096,7 @@ private struct DataSection: View {
                             }
                             .labelsHidden()
                             .pickerStyle(.menu)
-                            .frame(width: 96)
+                            .frame(width: 110)
                         }
                         .padding(.vertical, 3)
                     }
@@ -735,9 +1104,9 @@ private struct DataSection: View {
                         Spacer()
                         Button {
                             vm.applyRetentionCleanup(context: modelContext)
-                            ToastCenter.shared.show("已按规则清理", systemImage: "wand.and.sparkles", tint: .accentColor)
+                            ToastCenter.shared.show(L("settings.data.retention.cleaned"), systemImage: "wand.and.sparkles", tint: .accentColor)
                         } label: {
-                            Label("立即清理", systemImage: "wand.and.sparkles")
+                            Label(L("settings.data.retention.cleanNow"), systemImage: "wand.and.sparkles")
                         }
                     }
                     .padding(.top, 4)
@@ -745,45 +1114,27 @@ private struct DataSection: View {
             }
 
             SettingCard(
-                title: "导出历史",
-                subtitle: "将完整剪贴板历史以 JSON 格式导出，便于备份或迁移"
+                title: L("settings.data.export.title"),
+                subtitle: L("settings.data.export.subtitle")
             ) {
-                HStack {
-                    Spacer()
+                HStack(spacing: 10) {
                     Button {
                         vm.showExportPanel = true
                     } label: {
-                        Label("导出为 JSON…", systemImage: "square.and.arrow.up")
+                        Label(L("settings.data.export.exportButton"), systemImage: "square.and.arrow.up")
                     }
-                }
-            }
-
-            SettingCard(
-                title: "清空历史",
-                subtitle: "删除所有剪贴板记录，操作无法撤销"
-            ) {
-                HStack {
                     Spacer()
                     Button(role: .destructive) {
                         vm.deleteAll(context: modelContext)
-                        ToastCenter.shared.show("已清空历史", systemImage: "trash.fill", tint: .red)
+                        ToastCenter.shared.show(L("settings.data.export.clearedHistory"), systemImage: "trash.fill", tint: .red)
                     } label: {
-                        Label("清空所有记录", systemImage: "trash")
+                        Label(L("settings.data.export.clearHistory"), systemImage: "trash")
                     }
-                }
-            }
-
-            SettingCard(
-                title: "清除统计",
-                subtitle: "重置所有日期的复制次数计数，无法撤销"
-            ) {
-                HStack {
-                    Spacer()
                     Button(role: .destructive) {
                         stats.resetAll()
-                        ToastCenter.shared.show("已清除统计", systemImage: "chart.bar.xaxis", tint: .red)
+                        ToastCenter.shared.show(L("settings.data.export.clearedStats"), systemImage: "chart.bar.xaxis", tint: .red)
                     } label: {
-                        Label("清除所有统计", systemImage: "trash")
+                        Label(L("settings.data.export.clearStats"), systemImage: "chart.bar.xaxis")
                     }
                 }
             }
@@ -795,5 +1146,52 @@ private struct DataSection: View {
             get: { filters.retentionDays(for: type) },
             set: { filters.setRetentionDays($0, for: type) }
         )
+    }
+}
+
+// MARK: - Max records field
+//
+// A numeric input that lets the user type any value within `range` directly.
+// Commits on Return / focus loss and clamps out-of-range entries; a non-numeric
+// entry reverts to the last valid value so the UI never holds an invalid state.
+private struct MaxRecordsField: View {
+    @Binding var value: Int
+    var range: ClosedRange<Int> = 50...100_000
+
+    @State private var text: String = ""
+    @FocusState private var focused: Bool
+
+    var body: some View {
+        HStack(spacing: 6) {
+            TextField("", text: $text)
+                .textFieldStyle(.roundedBorder)
+                .font(.system(size: 13, design: .monospaced))
+                .multilineTextAlignment(.trailing)
+                .frame(width: 100)
+                .focused($focused)
+                .onAppear { text = "\(value)" }
+                .onChange(of: value) { _, newValue in
+                    if !focused { text = "\(newValue)" }
+                }
+                .onChange(of: focused) { _, isFocused in
+                    if !isFocused { commit() }
+                }
+                .onSubmit { commit() }
+            Text(L("settings.storage.maxRecordsUnit"))
+                .font(.system(size: 12))
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private func commit() {
+        let digits = text.filter(\.isNumber)
+        if let parsed = Int(digits) {
+            let clamped = min(max(parsed, range.lowerBound), range.upperBound)
+            value = clamped
+            text = "\(clamped)"
+        } else {
+            // Reject empty / non-numeric — fall back to the last good value.
+            text = "\(value)"
+        }
     }
 }

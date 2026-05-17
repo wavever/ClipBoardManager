@@ -6,15 +6,13 @@ import AppKit
 enum ListScope: String, CaseIterable, Identifiable {
     case all
     case favorites
-    case pinned
 
     var id: String { rawValue }
 
     var displayName: String {
         switch self {
-        case .all: return "全部"
-        case .favorites: return "收藏"
-        case .pinned: return "置顶"
+        case .all: return L("scope.all")
+        case .favorites: return L("scope.favorites")
         }
     }
 
@@ -22,13 +20,17 @@ enum ListScope: String, CaseIterable, Identifiable {
         switch self {
         case .all: return "tray.full"
         case .favorites: return "star.fill"
-        case .pinned: return "pin.fill"
         }
     }
 }
 
 @MainActor
 class ClipboardViewModel: ObservableObject {
+    /// UserDefaults key for the master semantic-search feature toggle. When
+    /// false, the toolbar hides the semantic mode segment and all queries
+    /// fall back to keyword search.
+    static let semanticFeatureEnabledKey = "semanticSearchFeatureEnabled"
+
     @Published var searchText = ""
     @Published var selectedType: ClipboardItemType? = nil
     @Published var selectedScope: ListScope = .all
@@ -39,16 +41,53 @@ class ClipboardViewModel: ObservableObject {
     @Published var selectedItemIDs: Set<UUID> = []
     @Published var showSnippetEditor = false
 
-    /// Minimum cosine similarity for a clip to show up in semantic results.
-    /// Apple's sentence embeddings produce mostly-positive scores for related
-    /// text in the 0.3–0.8 range; below ~0.25 is usually noise.
-    private let semanticThreshold: Float = 0.25
+    /// True while `backfillEmbeddings` is actively recomputing vectors. The
+    /// toolbar uses this to disable the semantic segment, and the settings
+    /// panel surfaces progress.
+    @Published var isBackfillingEmbeddings: Bool = false
+    @Published var backfillTotal: Int = 0
+    @Published var backfillCompleted: Int = 0
+
+    /// Reflects the persisted master toggle. Published so SwiftUI views that
+    /// observe the VM update when it flips. Updated by the settings panel via
+    /// `setSemanticFeatureEnabled(_:)` so the in-memory mirror stays in sync.
+    @Published var semanticFeatureEnabled: Bool = UserDefaults.standard.object(
+        forKey: ClipboardViewModel.semanticFeatureEnabledKey
+    ) as? Bool ?? true
+
+    func setSemanticFeatureEnabled(_ enabled: Bool) {
+        UserDefaults.standard.set(enabled, forKey: Self.semanticFeatureEnabledKey)
+        semanticFeatureEnabled = enabled
+        // Turning the feature off should also drop the per-search toggle so
+        // the next time it's re-enabled the user starts in plain text mode.
+        if !enabled, semanticSearchEnabled {
+            semanticSearchEnabled = false
+        }
+    }
+
+    /// Absolute cosine similarity floor — anything below this is usually noise.
+    private let semanticThreshold: Float = 0.35
+    /// High-confidence semantic hits stay visible even when the top result is
+    /// much stronger; this avoids a single perfect match hiding useful peers.
+    private let semanticStrongThreshold: Float = 0.55
+    /// Relative cutoff: drop any result that scores more than this far below
+    /// the top hit. Short Chinese queries produce a long tail of weakly
+    /// related vectors (e.g. "代码" pulling in "斤斤计较"); this keeps results
+    /// clustered around the best match.
+    private let semanticTopDelta: Float = 0.16
+    /// Bonus added to items whose content literally contains the query — a
+    /// substring hit is a strong relevance signal that pure cosine misses on
+    /// very short queries.
+    private let semanticKeywordBoost: Float = 0.35
+    /// Smaller boost for source-app matches, useful when users remember where
+    /// a clip came from but not the exact content.
+    private let semanticSourceBoost: Float = 0.12
 
     let monitor = ClipboardMonitor()
     private var retentionTimer: Timer?
     
     var filteredTypeDisplayName: String {
-        selectedType?.displayName ?? "全部"
+        selectedType?.displayName ?? L("common.all")
     }
     
     /// Drop entries that are older than the per-type retention setting and
@@ -116,6 +155,7 @@ class ClipboardViewModel: ObservableObject {
 
         monitor.startMonitoring { [weak self] type, rawContent, imageData, fileURL, sourceApp, bundleId in
             guard self != nil else { return }
+            ClipboardMonitor.debugLog("[VM] onNewContent type=\(type) src=\(sourceApp) bundle=\(bundleId) hasImageData=\(imageData != nil) fileURL=\(fileURL ?? "nil") content=\(rawContent.prefix(80))")
 
             // Drop utm_*/fbclid/etc. before the URL ever lands in history.
             let content: String = {
@@ -131,26 +171,32 @@ class ClipboardViewModel: ObservableObject {
                 content: content,
                 sourceBundleId: bundleId
             ) {
+                ClipboardMonitor.debugLog("[VM] excluded by filter")
                 return
             }
 
             // Re-copying the same content shouldn't grow a wall of duplicates
             // — refresh the existing entry's timestamp so it bubbles back to
-            // the top, and still count the copy in stats.
-            let recentDescriptor = FetchDescriptor<ClipboardItem>(
-                predicate: #Predicate { $0.content == content },
-                sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
-            )
-            if let existing = try? context.fetch(recentDescriptor),
-               let mostRecent = existing.first {
-                mostRecent.createdAt = Date()
-                try? context.save()
-                CopyStatsStore.shared.recordCopy()
-                DynamicIslandController.shared.flash(
-                    itemIcon: type.icon,
-                    preview: String(content.prefix(60))
+            // the top, and still count the copy in stats. We only dedup
+            // text-like clips: image/file/video share a content placeholder
+            // ("[图片 12KB]") so equality would collapse unrelated clips.
+            let isTextLike = (type == .text || type == .url || type == .rtf)
+            if isTextLike {
+                let recentDescriptor = FetchDescriptor<ClipboardItem>(
+                    predicate: #Predicate { $0.content == content },
+                    sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
                 )
-                return
+                if let existing = try? context.fetch(recentDescriptor),
+                   let mostRecent = existing.first {
+                    mostRecent.createdAt = Date()
+                    try? context.save()
+                    CopyStatsStore.shared.recordCopy()
+                    DynamicIslandController.shared.flash(
+                        itemIcon: type.icon,
+                        preview: String(content.prefix(60))
+                    )
+                    return
+                }
             }
             
             let item = ClipboardItem(
@@ -162,7 +208,12 @@ class ClipboardViewModel: ObservableObject {
                 preview: String(content.prefix(200))
             )
             context.insert(item)
-            try? context.save()
+            do {
+                try context.save()
+                ClipboardMonitor.debugLog("[VM] inserted id=\(item.id)")
+            } catch {
+                ClipboardMonitor.debugLog("[VM] insert FAILED: \(error)")
+            }
 
             // Bump today's copy counter (guarded by user's toggle).
             CopyStatsStore.shared.recordCopy()
@@ -237,7 +288,8 @@ class ClipboardViewModel: ObservableObject {
     }
     
     /// Hand-authored entry created via the snippet editor. Lives alongside
-    /// captured clips but tagged with sourceApp="片段" so it's distinguishable.
+    /// captured clips but tagged with the localized snippet source label so
+    /// it's distinguishable from real copies.
     @discardableResult
     func createSnippet(
         content: String,
@@ -248,7 +300,7 @@ class ClipboardViewModel: ObservableObject {
         let item = ClipboardItem(
             type: type,
             content: content,
-            sourceApp: "片段",
+            sourceApp: L("snippet.sourceApp"),
             preview: String(content.prefix(200))
         )
         item.isPinned = pinned
@@ -320,6 +372,15 @@ class ClipboardViewModel: ObservableObject {
         item.isPinned.toggle()
     }
 
+    func addTag(_ tag: String, to item: ClipboardItem) {
+        item.setTags(item.tags + [tag])
+    }
+
+    func removeTag(_ tag: String, from item: ClipboardItem) {
+        let key = tag.lowercased()
+        item.setTags(item.tags.filter { $0.lowercased() != key })
+    }
+
     // MARK: - Selection / Merge
 
     func enterSelectionMode() {
@@ -358,11 +419,11 @@ class ClipboardViewModel: ObservableObject {
 
     /// Inspect the selection and report why merge is blocked (or nil if it's OK).
     func mergeBlockReason(selectedItems: [ClipboardItem]) -> String? {
-        if selectedItems.count < 2 { return "至少选择两条" }
+        if selectedItems.count < 2 { return L("selection.requireTwo") }
         let types = Set(selectedItems.map { $0.itemType })
-        if types.count > 1 { return "仅支持同类型合并" }
+        if types.count > 1 { return L("selection.requireSameType") }
         if types.first == .image, !MergeSettingsStore.shared.enableImageMerge {
-            return "图片合并未启用（设置 → 合并）"
+            return L("selection.imageMergeDisabled")
         }
         return nil
     }
@@ -379,7 +440,9 @@ class ClipboardViewModel: ObservableObject {
         let settings = MergeSettingsStore.shared
         let sourceApps = Array(NSOrderedSet(array: sorted.map { $0.sourceApp }.filter { !$0.isEmpty }))
             as? [String] ?? []
-        let sourceApp = sourceApps.count == 1 ? sourceApps[0] : "合并 (\(sorted.count) 条)"
+        let sourceApp = sourceApps.count == 1
+            ? sourceApps[0]
+            : L("merge.sourceLabelFormat", sorted.count)
 
         let merged: ClipboardItem
         switch type {
@@ -392,7 +455,7 @@ class ClipboardViewModel: ObservableObject {
             let inline = sorted
                 .map { $0.content.replacingOccurrences(of: "\n", with: " ") }
                 .joined(separator: " · ")
-            let preview = "[合并 \(sorted.count) 条] " + String(inline.prefix(180))
+            let preview = L("merge.previewTextFormat", sorted.count) + String(inline.prefix(180))
             merged = ClipboardItem(
                 type: type,
                 content: mergedContent,
@@ -405,7 +468,7 @@ class ClipboardViewModel: ObservableObject {
             let names = sorted
                 .map { $0.resolvedFileURL?.lastPathComponent ?? $0.content }
                 .joined(separator: " · ")
-            let preview = "[合并 \(sorted.count) 项] " + String(names.prefix(180))
+            let preview = L("merge.previewFileFormat", sorted.count) + String(names.prefix(180))
             merged = ClipboardItem(
                 type: type,
                 content: mergedContent,
@@ -422,7 +485,7 @@ class ClipboardViewModel: ObservableObject {
                     background: settings.imageBackground.nsColor
                   )
             else { return nil }
-            let content = "[图片 拼接 \(sorted.count) 张 · \(stitched.count / 1024)KB]"
+            let content = L("merge.imageContentFormat", sorted.count, stitched.count / 1024)
             merged = ClipboardItem(
                 type: .image,
                 content: content,
@@ -473,25 +536,52 @@ class ClipboardViewModel: ObservableObject {
     // MARK: - Embedding backfill
 
     /// One-shot pass: compute embeddings for any historical items that are
-    /// missing one. Runs on a detached task to avoid blocking the UI.
+    /// missing one, or whose stored vector was generated with the wrong
+    /// language model. Runs on a detached task to avoid blocking the UI and
+    /// publishes progress so the UI can disable semantic search until done.
     func backfillEmbeddings(context: ModelContext) {
         Task { @MainActor in
-            // Re-embed items missing a vector OR whose vector was computed
-            // with a different model (dimension mismatch).
+            let service = EmbeddingService.shared
             let descriptor = FetchDescriptor<ClipboardItem>(
                 sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
             )
             guard let orphans = try? context.fetch(descriptor) else { return }
-            for item in orphans {
+
+            // First pass: cheap shape-only check. Trust the stored language
+            // tag when both fields are present and the byte count matches the
+            // current model's dimension. Only items that fail this filter get
+            // re-detected + re-embedded, so steady-state launches do zero
+            // language work and zero embedding work.
+            let pending = orphans.filter { item in
+                guard item.itemType != .image else { return false }
+                if let existing = item.embedding,
+                   let lang = item.embeddingLang,
+                   let dim = service.dimension(for: lang),
+                   existing.count == dim * MemoryLayout<Float>.size {
+                    return false
+                }
+                return true
+            }
+
+            guard !pending.isEmpty else { return }
+
+            backfillTotal = pending.count
+            backfillCompleted = 0
+            isBackfillingEmbeddings = true
+            defer {
+                isBackfillingEmbeddings = false
+                backfillTotal = 0
+                backfillCompleted = 0
+            }
+
+            for item in pending {
                 guard !Task.isCancelled else { break }
-                guard item.itemType != .image else { continue }
-                // Skip items that already have a correctly-sized vector.
-                if let existing = item.embedding, existing.count == 2048 { continue }
-                let text = item.content
-                let vec = await EmbeddingService.shared.embedAsync(text)
-                guard let vec else { continue }
-                item.embedding = vec.data
-                item.embeddingLang = vec.language
+                let vec = await service.embedAsync(item.content)
+                if let vec {
+                    item.embedding = vec.data
+                    item.embeddingLang = vec.language
+                }
+                backfillCompleted += 1
             }
             try? context.save()
         }
@@ -507,7 +597,6 @@ class ClipboardViewModel: ObservableObject {
         switch selectedScope {
         case .all: break
         case .favorites: result = result.filter { $0.isFavorite }
-        case .pinned: result = result.filter { $0.isPinned }
         }
 
         if let type = selectedType {
@@ -522,62 +611,109 @@ class ClipboardViewModel: ObservableObject {
             result = result.filter { $0.itemType == anchorType }
         }
 
-        if !searchText.isEmpty {
-            if semanticSearchEnabled {
-                result = semanticFilter(result, query: searchText)
+        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !query.isEmpty {
+            // Semantic search is only honored when the feature is enabled and
+            // the embedding index isn't being rebuilt — otherwise the user
+            // would see partial, jumpy results.
+            let useSemantic = semanticSearchEnabled
+                && semanticFeatureEnabled
+                && !isBackfillingEmbeddings
+            if useSemantic {
+                result = semanticFilter(result, query: query)
             } else {
-                let query = searchText.lowercased()
-                result = result.filter {
-                    $0.content.lowercased().contains(query) ||
-                    $0.sourceApp.lowercased().contains(query)
-                }
+                result = keywordFilter(result, query: query)
             }
         }
 
         // Pinned items float to the top while preserving the createdAt-desc
         // order from the @Query inside each group.
-        if selectedScope != .pinned {
-            let pinned = result.filter { $0.isPinned }
-            let others = result.filter { !$0.isPinned }
-            result = pinned + others
-        }
+        let pinned = result.filter { $0.isPinned }
+        let others = result.filter { !$0.isPinned }
+        result = pinned + others
 
         return result
     }
 
-    /// Rank items by cosine similarity to the query embedding.
-    /// Since all items use the same underlying model (English sentence
-    /// embedding), we compare every item regardless of the stored language
-    /// tag. Falls back to keyword match when the query can't be embedded.
+    /// Rank items by keyword and cosine similarity. Each language (`zh` /
+    /// `en`) has its own model with its own dimension, so search builds query
+    /// vectors for both and only compares compatible vector families.
     private func semanticFilter(_ items: [ClipboardItem], query: String) -> [ClipboardItem] {
         let service = EmbeddingService.shared
-        guard let queryVec = service.embed(query) else {
-            let q = query.lowercased()
-            return items.filter {
-                $0.content.lowercased().contains(q) ||
-                $0.sourceApp.lowercased().contains(q)
-            }
+        let queryVectors = service.embeddingsForSearch(query)
+        guard !queryVectors.isEmpty else {
+            return keywordFilter(items, query: query)
         }
 
-        struct Scored { let item: ClipboardItem; let score: Float }
+        struct Scored {
+            let item: ClipboardItem
+            let semanticScore: Float
+            let keywordScore: Float
+            let originalIndex: Int
+
+            var score: Float { semanticScore + keywordScore }
+            var hasKeywordMatch: Bool { keywordScore > 0 }
+        }
 
         var scored: [Scored] = []
-        for item in items {
-            guard let vecData = item.embedding, vecData.count == queryVec.data.count else { continue }
-            let sim = service.cosineSimilarity(queryVec.data, vecData)
-            if sim >= semanticThreshold {
-                scored.append(Scored(item: item, score: sim))
+        for (index, item) in items.enumerated() {
+            let semanticScore = service.bestSimilarity(
+                queryVectors: queryVectors,
+                itemEmbedding: item.embedding,
+                itemLanguage: item.embeddingLang
+            ) ?? 0
+            let keywordScore = keywordMatchScore(for: item, query: query)
+
+            if semanticScore >= semanticThreshold || keywordScore > 0 {
+                scored.append(
+                    Scored(
+                        item: item,
+                        semanticScore: semanticScore,
+                        keywordScore: keywordScore,
+                        originalIndex: index
+                    )
+                )
             }
         }
-        scored.sort { $0.score > $1.score }
-        // Fall back to keyword search if semantic matching found nothing.
-        if scored.isEmpty {
-            let q = query.lowercased()
-            return items.filter {
-                $0.content.lowercased().contains(q) ||
-                $0.sourceApp.lowercased().contains(q)
+
+        if let topSemantic = scored.map(\.semanticScore).max(), topSemantic >= semanticThreshold {
+            let cutoff = max(semanticThreshold, topSemantic - semanticTopDelta)
+            scored = scored.filter {
+                $0.hasKeywordMatch ||
+                $0.semanticScore >= semanticStrongThreshold ||
+                $0.semanticScore >= cutoff
             }
+        }
+
+        if scored.isEmpty {
+            return keywordFilter(items, query: query)
+        }
+        scored.sort {
+            if $0.hasKeywordMatch != $1.hasKeywordMatch {
+                return $0.hasKeywordMatch
+            }
+            if $0.score != $1.score {
+                return $0.score > $1.score
+            }
+            return $0.originalIndex < $1.originalIndex
         }
         return scored.map { $0.item }
+    }
+
+    private func keywordFilter(_ items: [ClipboardItem], query: String) -> [ClipboardItem] {
+        return items.filter {
+            keywordMatchScore(for: $0, query: query) > 0
+        }
+    }
+
+    private func keywordMatchScore(for item: ClipboardItem, query: String) -> Float {
+        var score: Float = 0
+        if item.content.localizedCaseInsensitiveContains(query) {
+            score += semanticKeywordBoost
+        }
+        if item.sourceApp.localizedCaseInsensitiveContains(query) {
+            score += semanticSourceBoost
+        }
+        return score
     }
 }

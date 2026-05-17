@@ -39,12 +39,12 @@ struct QuickPasteView: View {
             Image(systemName: "doc.on.clipboard")
                 .font(.system(size: 12, weight: .medium))
                 .foregroundStyle(.secondary)
-            Text("快速粘贴")
+            Text(L("quickpaste.title"))
                 .font(.system(size: 13, weight: .semibold))
             Spacer()
             Text(selectedIDs.isEmpty
-                 ? "点击任一条粘贴，或多选后点按钮"
-                 : "已选 \(selectedIDs.count) 条")
+                 ? L("quickpaste.hint.empty")
+                 : L("quickpaste.selectedCountFormat", selectedIDs.count))
                 .font(.system(size: 11))
                 .foregroundStyle(.secondary)
         }
@@ -91,14 +91,26 @@ struct QuickPasteView: View {
                     .lineLimit(2)
                     .foregroundStyle(.primary)
                 HStack(spacing: 6) {
-                    Text(item.descriptiveTag)
+                    HStack(spacing: 2) {
+                        Image(systemName: item.itemType.icon)
+                            .font(.system(size: 9, weight: .semibold))
+                        Text(item.descriptiveTag)
+                    }
+                    ForEach(item.tags, id: \.self) { tag in
+                        HStack(spacing: 2) {
+                            Image(systemName: "tag.fill")
+                                .font(.system(size: 8, weight: .semibold))
+                            Text(tag)
+                        }
+                        .foregroundStyle(Color.accentColor)
+                    }
                     Text("·")
-                    if item.sourceApp == "通用剪贴板" {
+                    if item.sourceApp == L("remote.universalClipboard") {
                         Image(systemName: "iphone.and.arrow.forward")
                             .font(.system(size: 9, weight: .semibold))
                             .foregroundStyle(Color.accentColor)
                     }
-                    Text(item.sourceApp.isEmpty ? "未知来源" : item.sourceApp)
+                    Text(item.sourceApp.isEmpty ? L("common.unknownSource") : item.sourceApp)
                     Spacer(minLength: 0)
                     Text(item.formattedDate)
                 }
@@ -133,7 +145,7 @@ struct QuickPasteView: View {
             Button {
                 onCancel()
             } label: {
-                Text("取消")
+                Text(L("common.cancel"))
                     .font(.system(size: 12))
                     .frame(minWidth: 56)
             }
@@ -147,8 +159,8 @@ struct QuickPasteView: View {
                 HStack(spacing: 6) {
                     Image(systemName: "return")
                     Text(selectedIDs.count <= 1
-                         ? "粘贴"
-                         : "按顺序粘贴 (\(selectedIDs.count))")
+                         ? L("quickpaste.paste")
+                         : L("quickpaste.pasteInOrderFormat", selectedIDs.count))
                 }
                 .font(.system(size: 12, weight: .semibold))
                 .frame(minWidth: 120)

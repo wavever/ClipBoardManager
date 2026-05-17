@@ -20,12 +20,23 @@ struct ClipBoardManagerApp: App {
     @AppStorage("showInDock") private var showInDock = true
     @AppStorage("menuBarIcon") private var menuBarIcon = true
     @AppStorage("hideFromCapture") private var hideFromCapture = false
+    @AppStorage("appearanceTheme") private var appearanceThemeRaw = AppearanceTheme.system.rawValue
+    @AppStorage("appLanguage") private var appLanguageRaw = AppLanguage.system.rawValue
+
+    private var appearanceTheme: AppearanceTheme {
+        AppearanceTheme(rawValue: appearanceThemeRaw) ?? .system
+    }
+    private var appLanguage: AppLanguage {
+        AppLanguage(rawValue: appLanguageRaw) ?? .system
+    }
 
     var body: some Scene {
         WindowGroup("ClipBoardManager", id: "main") {
             MainWindowView()
                 .environmentObject(clipboardVM)
                 .modelContainer(AppContainer.shared)
+                .preferredColorScheme(appearanceTheme.colorScheme)
+                .environment(\.locale, appLanguage.locale ?? Locale.current)
                 .onAppear {
                     applyActivationPolicy()
                     applyCaptureProtection()
@@ -38,11 +49,14 @@ struct ClipBoardManagerApp: App {
                 }
         }
         .defaultSize(width: 1000, height: 640)
+        .windowStyle(.hiddenTitleBar)
 
         MenuBarExtra("ClipBoard", systemImage: "doc.on.clipboard", isInserted: $menuBarIcon) {
             MenuBarView()
                 .environmentObject(clipboardVM)
                 .modelContainer(AppContainer.shared)
+                .preferredColorScheme(appearanceTheme.colorScheme)
+                .environment(\.locale, appLanguage.locale ?? Locale.current)
         }
         .menuBarExtraStyle(.window)
     }

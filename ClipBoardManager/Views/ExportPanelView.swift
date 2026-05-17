@@ -54,9 +54,9 @@ struct ExportPanelView: View {
                     .foregroundStyle(.white)
             }
             VStack(alignment: .leading, spacing: 2) {
-                Text("导出为 JSON")
+                Text(L("export.title"))
                     .font(.system(size: 17, weight: .bold))
-                Text("按筛选条件导出剪贴板历史")
+                Text(L("export.subtitle"))
                     .font(.system(size: 12))
                     .foregroundStyle(.secondary)
             }
@@ -69,13 +69,13 @@ struct ExportPanelView: View {
                     .background(Circle().fill(.secondary.opacity(0.15)))
             }
             .buttonStyle(.plain)
-            .help("关闭")
+            .help(L("common.close"))
             .keyboardShortcut(.escape, modifiers: [])
         }
     }
 
     private var typesCard: some View {
-        ExportCard(title: "类型", subtitle: "勾选要导出的内容类型") {
+        ExportCard(title: L("export.types.title"), subtitle: L("export.types.subtitle")) {
             LazyVGrid(
                 columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())],
                 spacing: 8
@@ -126,7 +126,7 @@ struct ExportPanelView: View {
     }
 
     private var rangeCard: some View {
-        ExportCard(title: "时间范围", subtitle: nil) {
+        ExportCard(title: L("export.range.title"), subtitle: nil) {
             VStack(alignment: .leading, spacing: 10) {
                 Picker("", selection: $filter.dateRange) {
                     ForEach(ExportFilter.DateRange.allCases) { range in
@@ -138,8 +138,8 @@ struct ExportPanelView: View {
 
                 if filter.dateRange == .custom {
                     HStack(spacing: 10) {
-                        DatePicker("从", selection: $filter.customStart, displayedComponents: [.date])
-                        DatePicker("到", selection: $filter.customEnd, displayedComponents: [.date])
+                        DatePicker(L("export.range.from"), selection: $filter.customStart, displayedComponents: [.date])
+                        DatePicker(L("export.range.to"), selection: $filter.customEnd, displayedComponents: [.date])
                     }
                     .font(.system(size: 12))
                 }
@@ -148,7 +148,7 @@ struct ExportPanelView: View {
     }
 
     private var favoriteCard: some View {
-        ExportCard(title: "收藏与置顶", subtitle: nil) {
+        ExportCard(title: L("export.favorites.title"), subtitle: nil) {
             Picker("", selection: $filter.favoriteScope) {
                 ForEach(ExportFilter.FavoriteScope.allCases) { scope in
                     Text(scope.displayName).tag(scope)
@@ -160,12 +160,12 @@ struct ExportPanelView: View {
     }
 
     private var optionsCard: some View {
-        ExportCard(title: "其他选项", subtitle: nil) {
+        ExportCard(title: L("export.options.title"), subtitle: nil) {
             Toggle(isOn: $filter.includeImageData) {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("包含图片数据（base64）")
+                    Text(L("export.options.includeImage"))
                         .font(.system(size: 13, weight: .medium))
-                    Text("文件体积会显著增大；不勾选时仅记录元信息")
+                    Text(L("export.options.includeImage.subtitle"))
                         .font(.system(size: 11))
                         .foregroundStyle(.secondary)
                 }
@@ -180,14 +180,14 @@ struct ExportPanelView: View {
                 Image(systemName: "doc.on.doc")
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
-                Text("将导出 \(matched.count) / \(allItems.count) 条")
+                Text(L("export.willExportFormat", matched.count, allItems.count))
                     .font(.system(size: 12))
                     .foregroundStyle(.secondary)
             }
 
             Spacer()
 
-            Button("取消", action: onClose)
+            Button(L("common.cancel"), action: onClose)
                 .keyboardShortcut(.cancelAction)
 
             Button {
@@ -197,7 +197,7 @@ struct ExportPanelView: View {
                     if isExporting {
                         ProgressView().controlSize(.small)
                     }
-                    Text("导出 JSON")
+                    Text(L("export.exportButton"))
                 }
             }
             .buttonStyle(.borderedProminent)
@@ -216,14 +216,14 @@ struct ExportPanelView: View {
                     break
                 case .success(let url):
                     ToastCenter.shared.show(
-                        "已导出 \(matched.count) 条到 \(url.lastPathComponent)",
+                        L("export.successFormat", matched.count, url.lastPathComponent),
                         systemImage: "checkmark.circle.fill",
                         tint: .green
                     )
                     onClose()
                 case .failure(let error):
                     ToastCenter.shared.show(
-                        "导出失败：\(error.localizedDescription)",
+                        L("export.failedFormat", error.localizedDescription),
                         systemImage: "exclamationmark.triangle.fill",
                         tint: .red
                     )

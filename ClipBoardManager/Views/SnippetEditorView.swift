@@ -22,7 +22,7 @@ struct SnippetEditorView: View {
                 Image(systemName: "square.and.pencil")
                     .font(.system(size: 14, weight: .semibold))
                     .foregroundStyle(Color.accentColor)
-                Text("新建片段")
+                Text(L("snippet.title"))
                     .font(.system(size: 17, weight: .semibold))
                 Spacer()
                 Picker("", selection: $type) {
@@ -37,7 +37,7 @@ struct SnippetEditorView: View {
 
             ZStack(alignment: .topLeading) {
                 if content.isEmpty {
-                    Text("输入要保存的内容…")
+                    Text(L("snippet.placeholder"))
                         .font(.system(size: 13))
                         .foregroundStyle(.tertiary)
                         .padding(.horizontal, 10)
@@ -62,16 +62,16 @@ struct SnippetEditorView: View {
             )
 
             HStack(spacing: 14) {
-                Toggle("保存后置顶", isOn: $pinAfterSave)
+                Toggle(L("snippet.pinAfterSave"), isOn: $pinAfterSave)
                     .toggleStyle(.switch)
                     .controlSize(.small)
                 Spacer()
-                Button("取消", role: .cancel) { onCancel() }
+                Button(L("common.cancel"), role: .cancel) { onCancel() }
                     .keyboardShortcut(.escape, modifiers: [])
                 Button {
                     onSave(trimmed, type, pinAfterSave)
                 } label: {
-                    Text("保存")
+                    Text(L("common.save"))
                         .frame(minWidth: 60)
                 }
                 .keyboardShortcut(.return, modifiers: .command)

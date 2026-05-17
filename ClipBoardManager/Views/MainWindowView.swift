@@ -96,7 +96,7 @@ struct MainWindowView: View {
                     )
                     vm.showSnippetEditor = false
                     ToastCenter.shared.show(
-                        pinned ? "片段已保存并置顶" : "片段已保存",
+                        pinned ? L("snippet.savedAndPinned") : L("snippet.saved"),
                         systemImage: "square.and.pencil",
                         tint: .accentColor
                     )
@@ -144,7 +144,7 @@ struct MainWindowView: View {
                             .transition(.move(edge: .bottom).combined(with: .opacity))
                     }
                 }
-                .animation(.easeOut(duration: 0.18), value: vm.isSelectionMode)
+                .animation(.spring(response: 0.32, dampingFraction: 0.82), value: vm.isSelectionMode)
             }
         }
     }
@@ -156,7 +156,7 @@ struct MainWindowView: View {
         let allSelected = !filteredItems.isEmpty && selected.count == filteredItems.count
 
         return HStack(spacing: 10) {
-            Text("已选 \(selected.count)/\(filteredItems.count)")
+            Text(L("selection.selectedFormat", selected.count, filteredItems.count))
                 .font(.system(size: 13, weight: .semibold))
                 .monospacedDigit()
             if let reason = blockReason, !selected.isEmpty {
@@ -171,21 +171,27 @@ struct MainWindowView: View {
 
             SelectionBarButton(
                 systemName: allSelected ? "checkmark.circle.badge.xmark" : "checkmark.circle",
-                title: allSelected ? "清空" : "全选"
+                title: allSelected ? L("selection.clear") : L("selection.selectAll")
             ) {
-                if allSelected { vm.clearSelection() }
-                else { vm.selectAll(filteredItems) }
+                withAnimation(.spring(response: 0.28, dampingFraction: 0.78)) {
+                    if allSelected { vm.clearSelection() }
+                    else { vm.selectAll(filteredItems) }
+                }
             }
-            SelectionBarButton(systemName: "arrow.triangle.2.circlepath", title: "反选") {
-                vm.invertSelection(filteredItems)
+            SelectionBarButton(systemName: "arrow.triangle.2.circlepath", title: L("selection.invert")) {
+                withAnimation(.spring(response: 0.28, dampingFraction: 0.78)) {
+                    vm.invertSelection(filteredItems)
+                }
             }
 
             Divider().frame(height: 18).opacity(0.5)
 
             Button {
-                vm.exitSelectionMode()
+                withAnimation(.spring(response: 0.32, dampingFraction: 0.82)) {
+                    vm.exitSelectionMode()
+                }
             } label: {
-                Text("取消")
+                Text(L("common.cancel"))
                     .font(.system(size: 13, weight: .medium))
                     .padding(.horizontal, 14)
                     .padding(.vertical, 7)
@@ -197,15 +203,25 @@ struct MainWindowView: View {
             )
 
             Button {
-                guard vm.mergeSelected(selected, context: modelContext) != nil else { return }
-                let suffix = MergeSettingsStore.shared.deleteOriginals ? "（已删除原条目）" : ""
+                let result = withAnimation(.spring(response: 0.32, dampingFraction: 0.82)) {
+                    vm.mergeSelected(selected, context: modelContext)
+                }
+                guard result != nil else {
+                    ToastCenter.shared.show(
+                        L("selection.mergeFailed"),
+                        systemImage: "exclamationmark.triangle.fill",
+                        tint: .red
+                    )
+                    return
+                }
+                let suffix = MergeSettingsStore.shared.deleteOriginals ? L("selection.mergedSuffix.deleted") : ""
                 ToastCenter.shared.show(
-                    "已合并 \(selected.count) 条\(suffix)",
+                    L("selection.mergedFormat", selected.count) + suffix,
                     systemImage: "square.stack.3d.up.fill",
                     tint: .accentColor
                 )
             } label: {
-                Label("合并 \(selected.count) 条", systemImage: "square.stack.3d.up.fill")
+                Label(L("selection.mergeCountFormat", selected.count), systemImage: "square.stack.3d.up.fill")
                     .font(.system(size: 13, weight: .semibold))
                     .padding(.horizontal, 14)
                     .padding(.vertical, 7)
@@ -257,16 +273,16 @@ struct MainWindowView: View {
             }
 
             VStack(alignment: .leading, spacing: 4) {
-                Text("剪贴板历史")
+                Text(L("main.title"))
                     .font(.system(size: 17, weight: .semibold))
                     .tracking(0.2)
                 HStack(spacing: 8) {
-                    HeaderStat(value: "\(allItems.count)", label: "条记录")
+                    HeaderStat(value: "\(allItems.count)", label: L("main.stat.records"))
                     HeaderStatDivider()
-                    HeaderStat(value: "\(allItems.filter { $0.isFavorite }.count)", label: "收藏")
+                    HeaderStat(value: "\(allItems.filter { $0.isFavorite }.count)", label: L("main.stat.favorites"))
                     if stats.enabled {
                         HeaderStatDivider()
-                        HeaderStat(value: "\(stats.todayCount())", label: "今日", tint: .accentColor)
+                        HeaderStat(value: "\(stats.todayCount())", label: L("main.stat.today"), tint: .accentColor)
                     }
                 }
             }
@@ -291,7 +307,7 @@ struct MainWindowView: View {
             .controlSize(.regular)
 
             Picker("", selection: $vm.selectedType) {
-                Text("全部类型").tag(nil as ClipboardItemType?)
+                Text(L("common.allTypes")).tag(nil as ClipboardItemType?)
                 ForEach(ClipboardItemType.allCases, id: \.self) { type in
                     Label(type.displayName, systemImage: type.icon).tag(type as ClipboardItemType?)
                 }
@@ -300,35 +316,42 @@ struct MainWindowView: View {
             .pickerStyle(.menu)
             .frame(width: 128)
 
-            ToolbarSearchField(text: $vm.searchText, semantic: $vm.semanticSearchEnabled)
+            ToolbarSearchField(
+                text: $vm.searchText,
+                semantic: $vm.semanticSearchEnabled,
+                featureEnabled: vm.semanticFeatureEnabled,
+                indexing: vm.isBackfillingEmbeddings
+            )
 
             Spacer(minLength: 8)
 
-            ToolbarIconButton(systemName: "square.and.pencil", help: "新建片段") {
+            ToolbarIconButton(systemName: "square.and.pencil", help: L("toolbar.newSnippet")) {
                 vm.showSnippetEditor = true
             }
             .keyboardShortcut("n", modifiers: .command)
 
             ToolbarIconButton(
                 systemName: vm.isSelectionMode ? "checkmark.circle.fill" : "checkmark.circle",
-                help: vm.isSelectionMode ? "退出选择" : "选择并合并"
+                help: vm.isSelectionMode ? L("toolbar.exitSelection") : L("toolbar.selectAndMerge")
             ) {
-                if vm.isSelectionMode {
-                    vm.exitSelectionMode()
-                } else {
-                    vm.enterSelectionMode()
+                withAnimation(.spring(response: 0.32, dampingFraction: 0.82)) {
+                    if vm.isSelectionMode {
+                        vm.exitSelectionMode()
+                    } else {
+                        vm.enterSelectionMode()
+                    }
                 }
             }
 
-            ToolbarIconButton(systemName: "trash", help: "垃圾桶") {
+            ToolbarIconButton(systemName: "trash", help: L("toolbar.trash")) {
                 nav.showTrash()
             }
 
-            ToolbarIconButton(systemName: "chart.bar.xaxis", help: "活跃统计") {
+            ToolbarIconButton(systemName: "chart.bar.xaxis", help: L("toolbar.stats")) {
                 nav.showStats()
             }
 
-            ToolbarIconButton(systemName: "gearshape", help: "设置") {
+            ToolbarIconButton(systemName: "gearshape", help: L("toolbar.settings")) {
                 nav.showSettings()
             }
             .keyboardShortcut(",", modifiers: .command)
@@ -369,31 +392,28 @@ struct MainWindowView: View {
         switch vm.selectedScope {
         case .all: return "tray"
         case .favorites: return "star"
-        case .pinned: return "pin"
         }
     }
 
     private var emptyStateTitle: String {
-        if !vm.searchText.isEmpty { return "未找到匹配的内容" }
+        if !vm.searchText.isEmpty { return L("main.empty.title.noMatch") }
         switch vm.selectedScope {
-        case .all: return "暂无剪贴板记录"
-        case .favorites: return "还没有收藏的内容"
-        case .pinned: return "还没有置顶的内容"
+        case .all: return L("main.empty.title.all")
+        case .favorites: return L("main.empty.title.favorites")
         }
     }
 
     private var emptyStateSubtitle: String {
-        if !vm.searchText.isEmpty { return "试试其他关键字或类型" }
+        if !vm.searchText.isEmpty { return L("main.empty.subtitle.noMatch") }
         switch vm.selectedScope {
-        case .all: return "复制点什么试试 — 文本、图片、文件都可以"
-        case .favorites: return "在条目上点 ☆ 即可加入收藏"
-        case .pinned: return "在条目上点 📌 即可置顶"
+        case .all: return L("main.empty.subtitle.all")
+        case .favorites: return L("main.empty.subtitle.favorites")
         }
     }
 
     /// Split filtered items into a pinned section + the rest, but only when
-    /// the user is on the "全部" scope — the dedicated pinned scope already
-    /// shows them flat, and inside "收藏" a section header would be noise.
+    /// the user is on the "全部" scope — inside "收藏" a section header
+    /// would just be noise.
     private var splitItems: (pinned: [ClipboardItem], others: [ClipboardItem]) {
         let items = filteredItems
         guard vm.selectedScope == .all else { return ([], items) }
@@ -431,17 +451,17 @@ struct MainWindowView: View {
             isSelected: vm.isSelected(item),
             onCopy: {
                 vm.copyToClipboard(item)
-                ToastCenter.shared.show("已复制")
+                ToastCenter.shared.show(L("common.copied"))
             },
             onDelete: {
                 vm.deleteItem(item, context: modelContext)
-                ToastCenter.shared.show("已删除", systemImage: "trash.fill", tint: .red)
+                ToastCenter.shared.show(L("common.deleted"), systemImage: "trash.fill", tint: .red)
             },
             onToggleFavorite: {
                 let willFavorite = !item.isFavorite
                 vm.toggleFavorite(item)
                 ToastCenter.shared.show(
-                    willFavorite ? "已添加到收藏" : "已取消收藏",
+                    willFavorite ? L("action.favorited") : L("action.unfavorited"),
                     systemImage: "star.fill",
                     tint: .yellow
                 )
@@ -450,7 +470,7 @@ struct MainWindowView: View {
                 let willPin = !item.isPinned
                 vm.togglePin(item)
                 ToastCenter.shared.show(
-                    willPin ? "已置顶" : "已取消置顶",
+                    willPin ? L("action.pinned") : L("action.unpinned"),
                     systemImage: "pin.fill",
                     tint: .orange
                 )
@@ -467,6 +487,17 @@ struct MainWindowView: View {
             },
             onOpenURL: {
                 openInBrowser(item.content)
+            },
+            onSaveImage: {
+                ExportService.shared.exportItem(item)
+            },
+            onAddTag: { tag in
+                vm.addTag(tag, to: item)
+                try? modelContext.save()
+            },
+            onRemoveTag: { tag in
+                vm.removeTag(tag, from: item)
+                try? modelContext.save()
             }
         )
         .contextMenu { contextMenu(for: item) }
@@ -477,11 +508,13 @@ struct MainWindowView: View {
         .gesture(
             vm.isSelectionMode
                 ? TapGesture(count: 1).onEnded {
-                    vm.toggleSelection(item)
+                    withAnimation(.spring(response: 0.22, dampingFraction: 0.7)) {
+                        vm.toggleSelection(item)
+                    }
                 }
                 : TapGesture(count: 2).onEnded {
                     vm.copyToClipboard(item)
-                    ToastCenter.shared.show("已复制")
+                    ToastCenter.shared.show(L("common.copied"))
                 }
         )
     }
@@ -494,7 +527,7 @@ struct MainWindowView: View {
                 Image(systemName: "pin.fill")
                     .font(.system(size: 11, weight: .semibold))
                     .foregroundStyle(.orange)
-                Text("置顶 \(count) 条")
+                Text(L("main.pinnedCountFormat", count))
                     .font(.system(size: 12, weight: .semibold))
                     .foregroundStyle(.secondary)
                     .monospacedDigit()
@@ -520,63 +553,63 @@ struct MainWindowView: View {
 
     @ViewBuilder
     private func contextMenu(for item: ClipboardItem) -> some View {
-        Button("复制", systemImage: "doc.on.doc") {
+        Button(L("action.copy"), systemImage: "doc.on.doc") {
             vm.copyToClipboard(item)
-            ToastCenter.shared.show("已复制")
+            ToastCenter.shared.show(L("common.copied"))
         }
         if item.itemType == .url {
             Divider()
-            Button("在浏览器中打开", systemImage: "safari") {
+            Button(L("action.openInBrowser"), systemImage: "safari") {
                 openInBrowser(item.content)
             }
         }
         if item.resolvedFileURL != nil {
             Divider()
-            Button("在 Finder 中显示", systemImage: "folder") {
+            Button(L("action.revealInFinder"), systemImage: "folder") {
                 if let url = item.resolvedFileURL {
                     NSWorkspace.shared.activateFileViewerSelecting([url])
                 }
             }
-            Button("打开文件", systemImage: "arrow.up.forward.app") {
+            Button(L("action.openFile"), systemImage: "arrow.up.forward.app") {
                 if let url = item.resolvedFileURL {
                     NSWorkspace.shared.open(url)
                 }
             }
-            Button("用其他应用打开…", systemImage: "app.badge") {
+            Button(L("action.openWith"), systemImage: "app.badge") {
                 if let url = item.resolvedFileURL {
                     FileOpener.openWithChooser(url: url)
                 }
             }
         }
         Divider()
-        Button(item.isFavorite ? "取消收藏" : "收藏",
+        Button(item.isFavorite ? L("action.unfavorite") : L("action.favorite"),
                systemImage: item.isFavorite ? "star.slash" : "star") {
             let willFavorite = !item.isFavorite
             vm.toggleFavorite(item)
             ToastCenter.shared.show(
-                willFavorite ? "已添加到收藏" : "已取消收藏",
+                willFavorite ? L("action.favorited") : L("action.unfavorited"),
                 systemImage: "star.fill",
                 tint: .yellow
             )
         }
-        Button(item.isPinned ? "取消置顶" : "置顶",
+        Button(item.isPinned ? L("action.unpin") : L("action.pin"),
                systemImage: item.isPinned ? "pin.slash" : "pin") {
             let willPin = !item.isPinned
             vm.togglePin(item)
             ToastCenter.shared.show(
-                willPin ? "已置顶" : "已取消置顶",
+                willPin ? L("action.pinned") : L("action.unpinned"),
                 systemImage: "pin.fill",
                 tint: .orange
             )
         }
         Divider()
-        Button("导出…", systemImage: "square.and.arrow.up") {
+        Button(L("action.exportOne"), systemImage: "square.and.arrow.up") {
             ExportService.shared.exportItem(item)
         }
         Divider()
-        Button("删除", systemImage: "trash", role: .destructive) {
+        Button(L("action.delete"), systemImage: "trash", role: .destructive) {
             vm.deleteItem(item, context: modelContext)
-            ToastCenter.shared.show("已删除", systemImage: "trash.fill", tint: .red)
+            ToastCenter.shared.show(L("common.deleted"), systemImage: "trash.fill", tint: .red)
         }
     }
 
@@ -627,16 +660,27 @@ private struct HeaderStatDivider: View {
 private struct ToolbarSearchField: View {
     @Binding var text: String
     @Binding var semantic: Bool
+    /// Master feature toggle from settings — when false, the semantic
+    /// segment hides entirely so the search bar collapses to plain text.
+    var featureEnabled: Bool
+    /// True while the VM is backfilling embeddings. Disables the semantic
+    /// segment with a "building index" hint instead of letting users switch
+    /// into a half-populated mode.
+    var indexing: Bool
 
     @FocusState private var focused: Bool
+
+    /// Active mode color — accent for full-text, purple for semantic so
+    /// users can tell at a glance which mode is driving the results.
+    private var tint: Color { semantic ? .purple : .accentColor }
 
     var body: some View {
         HStack(spacing: 8) {
             Image(systemName: "magnifyingglass")
                 .font(.system(size: 12, weight: .medium))
-                .foregroundStyle(focused ? Color.accentColor : .secondary)
+                .foregroundStyle(focused ? tint : .secondary)
                 .animation(.easeOut(duration: 0.15), value: focused)
-            TextField(semantic ? "语义搜索…" : "搜索内容…", text: $text)
+            TextField(semantic ? L("common.semanticSearch") : L("common.searchContent"), text: $text)
                 .textFieldStyle(.plain)
                 .font(.system(size: 13))
                 .focused($focused)
@@ -647,18 +691,40 @@ private struct ToolbarSearchField: View {
                         .foregroundStyle(.tertiary)
                 }
                 .buttonStyle(.plain)
+                .help(L("common.clearSearch"))
                 .transition(.opacity)
             }
-            Divider().frame(height: 12).opacity(0.4)
-            Button {
-                withAnimation(.easeOut(duration: 0.15)) { semantic.toggle() }
-            } label: {
-                Image(systemName: semantic ? "sparkle" : "text.magnifyingglass")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(semantic ? Color.accentColor : Color.secondary)
+            if featureEnabled {
+                Divider().frame(height: 12).opacity(0.4)
+                SearchModeSegment(
+                    icon: "text.magnifyingglass",
+                    title: L("common.searchMode.full"),
+                    isOn: !semantic,
+                    tint: .accentColor
+                ) {
+                    withAnimation(.easeOut(duration: 0.15)) { semantic = false }
+                }
+                SearchModeSegment(
+                    icon: indexing ? "hourglass" : "sparkle",
+                    title: indexing
+                        ? L("common.searchMode.indexing")
+                        : L("common.searchMode.semantic"),
+                    isOn: semantic && !indexing,
+                    tint: .purple,
+                    disabled: indexing,
+                    showsSpinner: indexing
+                ) {
+                    if indexing {
+                        ToastCenter.shared.show(
+                            L("search.semantic.indexing.toast"),
+                            systemImage: "hourglass",
+                            tint: .orange
+                        )
+                        return
+                    }
+                    withAnimation(.easeOut(duration: 0.15)) { semantic = true }
+                }
             }
-            .buttonStyle(.plain)
-            .help(semantic ? "切换到全文搜索" : "切换到语义搜索")
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 6)
@@ -670,12 +736,84 @@ private struct ToolbarSearchField: View {
         .overlay(
             RoundedRectangle(cornerRadius: 8, style: .continuous)
                 .strokeBorder(
-                    focused ? Color.accentColor.opacity(0.6) : Color.secondary.opacity(0.18),
+                    focused ? tint.opacity(0.6) : Color.secondary.opacity(0.18),
                     lineWidth: focused ? 1 : 0.5
                 )
         )
-        .frame(maxWidth: 320)
+        .frame(maxWidth: 360)
         .animation(.easeOut(duration: 0.18), value: focused)
+        .animation(.easeOut(duration: 0.18), value: semantic)
+        .animation(.easeOut(duration: 0.18), value: indexing)
+        .animation(.easeOut(duration: 0.18), value: featureEnabled)
+        // If settings flip the feature off while we're in semantic mode,
+        // fall back to plain text — otherwise the search bar would behave
+        // semantically with no visible affordance.
+        .onChange(of: featureEnabled) { _, isOn in
+            if !isOn, semantic { semantic = false }
+        }
+        // Same idea while a backfill is in-flight: drop into text mode so
+        // the user actually sees results until the index is ready.
+        .onChange(of: indexing) { _, isOn in
+            if isOn, semantic { semantic = false }
+        }
+    }
+}
+
+private struct SearchModeSegment: View {
+    let icon: String
+    let title: String
+    let isOn: Bool
+    let tint: Color
+    /// When true, the segment looks dimmed and reads as non-interactive.
+    /// The click handler still fires (the parent uses it to surface a toast
+    /// explaining why the mode is currently unavailable).
+    var disabled: Bool = false
+    /// Replaces the icon with a tiny progress indicator so users can tell at
+    /// a glance that the disabled state is "loading" rather than "broken".
+    var showsSpinner: Bool = false
+    let action: () -> Void
+
+    @State private var hovering = false
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 3) {
+                if showsSpinner {
+                    ProgressView()
+                        .progressViewStyle(.circular)
+                        .controlSize(.mini)
+                        .scaleEffect(0.7)
+                        .frame(width: 12, height: 12)
+                } else {
+                    Image(systemName: icon)
+                        .font(.system(size: 10, weight: .semibold))
+                }
+                Text(title)
+                    .font(.system(size: 11, weight: .semibold))
+            }
+            .padding(.horizontal, 7)
+            .padding(.vertical, 3)
+            .foregroundStyle(foreground)
+            .background(
+                RoundedRectangle(cornerRadius: 5, style: .continuous)
+                    .fill(
+                        isOn
+                            ? AnyShapeStyle(tint)
+                            : AnyShapeStyle(hovering && !disabled
+                                ? Color.secondary.opacity(0.18)
+                                : Color.clear)
+                    )
+            )
+            .opacity(disabled ? 0.6 : 1)
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering = $0 }
+    }
+
+    private var foreground: Color {
+        if disabled { return .secondary }
+        if isOn { return .white }
+        return hovering ? .primary : .secondary
     }
 }
 
@@ -728,7 +866,71 @@ struct ToolbarIconButton: View {
                 )
         }
         .buttonStyle(.plain)
-        .help(help)
+        .accessibilityLabel(help)
+        .hoverTip(help)
         .onHover { isHovered = $0 }
+    }
+}
+
+// MARK: - Hover tooltip
+
+/// Lightweight hover tooltip that pops up faster than macOS's default
+/// `.help(...)` (which sits behind a ~1.5s system delay). Renders a small
+/// rounded label below the icon after `delay` seconds of sustained hover.
+private struct HoverTipModifier: ViewModifier {
+    let text: String
+    let delay: TimeInterval
+
+    @State private var hovering = false
+    @State private var showTip = false
+
+    func body(content: Content) -> some View {
+        content
+            .onHover { isHovering in
+                hovering = isHovering
+                if isHovering {
+                    Task { @MainActor in
+                        try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+                        guard hovering else { return }
+                        withAnimation(.easeOut(duration: 0.12)) { showTip = true }
+                    }
+                } else {
+                    withAnimation(.easeOut(duration: 0.1)) { showTip = false }
+                }
+            }
+            .overlay(alignment: .bottom) {
+                if showTip {
+                    HoverTipBubble(text: text)
+                        .fixedSize()
+                        .offset(y: 24)
+                        .transition(.opacity)
+                        .allowsHitTesting(false)
+                        .zIndex(999)
+                }
+            }
+    }
+}
+
+private struct HoverTipBubble: View {
+    let text: String
+
+    var body: some View {
+        Text(text)
+            .font(.system(size: 11, weight: .medium))
+            .foregroundStyle(.white)
+            .padding(.horizontal, 7)
+            .padding(.vertical, 4)
+            .background(
+                RoundedRectangle(cornerRadius: 5, style: .continuous)
+                    .fill(Color.black.opacity(0.85))
+            )
+    }
+}
+
+extension View {
+    /// Faster hover tooltip than the system `.help(...)`. Default ~0.35s
+    /// delay (vs. macOS's ~1.5s) so the label appears almost immediately.
+    func hoverTip(_ text: String, delay: TimeInterval = 0.35) -> some View {
+        modifier(HoverTipModifier(text: text, delay: delay))
     }
 }

@@ -28,15 +28,15 @@ enum AppShortcut: String, CaseIterable, Identifiable {
 
     var displayName: String {
         switch self {
-        case .openMainWindow: return "打开主窗口"
-        case .openQuickPaste: return "弹出快速粘贴浮窗"
+        case .openMainWindow: return L("settings.shortcut.openMainWindow")
+        case .openQuickPaste: return L("settings.shortcut.openQuickPaste")
         }
     }
 
     var subtitle: String {
         switch self {
-        case .openMainWindow: return "全局热键，激活主窗口并置前"
-        case .openQuickPaste: return "在鼠标位置弹出浮窗，多选后自动粘贴到当前应用"
+        case .openMainWindow: return L("settings.shortcut.openMainWindow.subtitle")
+        case .openQuickPaste: return L("settings.shortcut.openQuickPaste.subtitle")
         }
     }
 }

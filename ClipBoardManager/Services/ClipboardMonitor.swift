@@ -17,6 +17,20 @@ class ClipboardMonitor: ObservableObject {
 
     /// Call this **right after** writing to `NSPasteboard.general` from within
     /// the app so the monitor knows to ignore the resulting change-count tick.
+    private static let debugLogURL = URL(fileURLWithPath: "/tmp/clipboard-debug.log")
+    static func debugLog(_ message: String) {
+        let line = "\(Date()) \(message)\n"
+        if let data = line.data(using: .utf8) {
+            if let handle = try? FileHandle(forWritingTo: debugLogURL) {
+                _ = try? handle.seekToEnd()
+                try? handle.write(contentsOf: data)
+                try? handle.close()
+            } else {
+                try? data.write(to: debugLogURL)
+            }
+        }
+    }
+
     static func markInternalWrite() {
         internalChangeCounts.insert(NSPasteboard.general.changeCount)
         // Bound the buffer so a long-running session can't leak ints forever
@@ -50,8 +64,11 @@ class ClipboardMonitor: ObservableObject {
         // Skip ticks we caused ourselves — re-copying a history item should
         // leave its position untouched, not boost it to the top.
         if Self.internalChangeCounts.remove(currentChangeCount) != nil {
+            Self.debugLog("[Clipboard] skip internal write @\(currentChangeCount)")
             return
         }
+
+        Self.debugLog("[Clipboard] tick @\(currentChangeCount) types=\(pasteboard.types?.map { $0.rawValue } ?? [])")
 
         let (sourceApp, bundleId): (String, String)
         if isRemoteClipboard() {
@@ -59,7 +76,7 @@ class ClipboardMonitor: ObservableObject {
             // Handoff). The "frontmost app" at this instant is whatever the
             // user happens to be focused on locally, which is misleading —
             // tag it as remote so the row and toast can show that.
-            sourceApp = "通用剪贴板"
+            sourceApp = L("remote.universalClipboard")
             bundleId = ClipboardMonitor.remoteBundleID
         } else {
             (sourceApp, bundleId) = getActiveApp()
@@ -69,6 +86,7 @@ class ClipboardMonitor: ObservableObject {
         let fileOnlyOptions: [NSPasteboard.ReadingOptionKey: Any] = [.urlReadingFileURLsOnly: true]
         if let urls = pasteboard.readObjects(forClasses: [NSURL.self], options: fileOnlyOptions) as? [URL],
            !urls.isEmpty {
+            Self.debugLog("[Clipboard] -> file branch urls=\(urls.map { $0.absoluteString })")
             let paths = urls.map { $0.path }.joined(separator: "\n")
             let firstURL = urls[0]
             let ext = firstURL.pathExtension.lowercased()
@@ -86,12 +104,26 @@ class ClipboardMonitor: ObservableObject {
             return
         }
 
-        // 2. 原始图片数据（截图、应用拷贝出来的位图）
-        if let imageData = pasteboard.data(forType: .tiff) ?? pasteboard.data(forType: .png) {
-            let content = "[图片 \(imageData.count / 1024)KB]"
+        // 2. 原始图片数据（截图、浏览器复制、应用拷贝出来的位图）
+        //    Fast path: tiff/png directly. Fallback: NSImage(pasteboard:)
+        //    which understands every image UTI macOS recognises (jpeg, heic,
+        //    Safari's image-copy variants, …) and gives us a stable TIFF
+        //    representation back.
+        let imageData: Data? = {
+            if let data = pasteboard.data(forType: .tiff) { return data }
+            if let data = pasteboard.data(forType: .png) { return data }
+            if let img = NSImage(pasteboard: pasteboard) {
+                return img.tiffRepresentation
+            }
+            return nil
+        }()
+        if let imageData {
+            Self.debugLog("[Clipboard] -> image branch bytes=\(imageData.count)")
+            let content = L("merge.imagePlaceholderFormat", imageData.count / 1024)
             onNewContent?(.image, content, imageData, nil, sourceApp, bundleId)
             return
         }
+        Self.debugLog("[Clipboard] -> no image found; image=\(NSImage(pasteboard: pasteboard) != nil) tiff=\(pasteboard.data(forType: .tiff)?.count ?? -1) png=\(pasteboard.data(forType: .png)?.count ?? -1)")
 
         // 3. 普通字符串
         if let string = pasteboard.string(forType: .string), !string.isEmpty {
@@ -103,17 +135,17 @@ class ClipboardMonitor: ObservableObject {
 
         // 4. 富文本
         if let rtfData = pasteboard.data(forType: .rtf) {
-            let content = String(data: rtfData, encoding: .utf8) ?? "[富文本]"
+            let content = String(data: rtfData, encoding: .utf8) ?? L("merge.rtfPlaceholder")
             onNewContent?(.rtf, content, nil, nil, sourceApp, bundleId)
             return
         }
     }
-    
+
     private func getActiveApp() -> (name: String, bundleId: String) {
         if let app = NSWorkspace.shared.frontmostApplication {
-            return (app.localizedName ?? "未知", app.bundleIdentifier ?? "")
+            return (app.localizedName ?? L("common.unknown"), app.bundleIdentifier ?? "")
         }
-        return ("未知", "")
+        return (L("common.unknown"), "")
     }
 
     /// Sentinel bundle id used for clips delivered by macOS Universal

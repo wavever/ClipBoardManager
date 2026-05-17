@@ -51,7 +51,7 @@ final class QuickPasteController: NSObject, NSWindowDelegate {
         let items = fetchRecentItems()
         guard !items.isEmpty else {
             ToastCenter.shared.show(
-                "剪贴板历史为空",
+                L("quickpaste.emptyClipboard"),
                 systemImage: "tray",
                 tint: .secondary
             )
@@ -171,7 +171,7 @@ final class QuickPasteController: NSObject, NSWindowDelegate {
                 if !AutoPasteService.paste() {
                     AutoPasteService.requestTrust()
                     ToastCenter.shared.show(
-                        "已复制到剪贴板，请手动 ⌘V；可在系统设置「辅助功能」中授权自动粘贴",
+                        L("quickpaste.manualPasteHint"),
                         systemImage: "exclamationmark.triangle.fill",
                         tint: .orange
                     )
