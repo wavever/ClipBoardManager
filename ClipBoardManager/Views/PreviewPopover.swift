@@ -4,6 +4,12 @@ import AppKit
 
 struct PreviewPopover: View {
     let item: ClipboardItem
+    @AppStorage("videoPreviewMode") private var videoPreviewModeRaw = VideoPreviewMode.video.rawValue
+    @AppStorage("videoPreviewMuted") private var videoPreviewMuted = true
+
+    private var videoPreviewMode: VideoPreviewMode {
+        VideoPreviewMode(rawValue: videoPreviewModeRaw) ?? .video
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -63,8 +69,14 @@ struct PreviewPopover: View {
             }
         case .video:
             if let url = item.resolvedFileURL, FileManager.default.fileExists(atPath: url.path) {
-                VideoPlayer(player: AVPlayer(url: url))
-                    .padding(8)
+                switch videoPreviewMode {
+                case .firstFrame:
+                    VideoPosterPreview(item: item)
+                        .padding(8)
+                case .video:
+                    VideoPreviewPlayer(url: url, muted: videoPreviewMuted)
+                        .padding(8)
+                }
             } else {
                 ContentUnavailableView(L("preview.cannotVideo"), systemImage: "video.badge.exclamationmark")
             }
@@ -257,5 +269,118 @@ struct PreviewPopover: View {
             str = String(str[..<idx]) + "\n…"
         }
         return str
+    }
+}
+
+private struct VideoPreviewPlayer: NSViewRepresentable {
+    let url: URL
+    let muted: Bool
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(url: url, muted: muted)
+    }
+
+    func makeNSView(context: Context) -> AVPlayerView {
+        let view = AVPlayerView()
+        view.player = context.coordinator.player
+        view.controlsStyle = .floating
+        view.videoGravity = .resizeAspect
+        context.coordinator.playWhenReady()
+        return view
+    }
+
+    func updateNSView(_ view: AVPlayerView, context: Context) {
+        context.coordinator.setMuted(muted)
+        let changed = context.coordinator.update(url: url)
+        if view.player !== context.coordinator.player {
+            view.player = context.coordinator.player
+        }
+        if changed {
+            context.coordinator.playWhenReady()
+        }
+    }
+
+    static func dismantleNSView(_ nsView: AVPlayerView, coordinator: Coordinator) {
+        coordinator.player.pause()
+        nsView.player = nil
+    }
+
+    final class Coordinator {
+        let player: AVPlayer
+        private var currentURL: URL
+
+        init(url: URL, muted: Bool) {
+            self.currentURL = url
+            self.player = AVPlayer(url: url)
+            self.player.isMuted = muted
+        }
+
+        func update(url: URL) -> Bool {
+            guard url != currentURL else { return false }
+            currentURL = url
+            player.replaceCurrentItem(with: AVPlayerItem(url: url))
+            return true
+        }
+
+        func playWhenReady() {
+            DispatchQueue.main.async { [player] in
+                player.play()
+            }
+        }
+
+        func setMuted(_ muted: Bool) {
+            player.isMuted = muted
+        }
+    }
+}
+
+private struct VideoPosterPreview: View {
+    let item: ClipboardItem
+    @State private var image: NSImage?
+    @State private var loading = true
+
+    var body: some View {
+        ZStack {
+            if let image {
+                Image(nsImage: image)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+            } else if loading {
+                ProgressView()
+                    .controlSize(.small)
+            } else {
+                ContentUnavailableView(L("preview.cannotVideo"), systemImage: "video.badge.exclamationmark")
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .task(id: item.id) {
+            loading = true
+            image = await ThumbnailLoader.shared.thumbnail(
+                for: item,
+                size: CGSize(width: 720, height: 420)
+            )
+            loading = false
+        }
+    }
+}
+
+enum VideoPreviewMode: String, CaseIterable, Identifiable {
+    case firstFrame
+    case video
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .firstFrame: return L("settings.preview.videoMode.firstFrame")
+        case .video:      return L("settings.preview.videoMode.video")
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .firstFrame: return "photo"
+        case .video:      return "play.rectangle"
+        }
     }
 }

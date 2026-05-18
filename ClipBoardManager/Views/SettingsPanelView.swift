@@ -501,6 +501,8 @@ private struct GeneralSection: View {
     @Binding var appLanguageRaw: String
 
     @AppStorage("fdaOnboardingDismissed") private var fdaOnboardingDismissed = false
+    @AppStorage("videoPreviewMode") private var videoPreviewModeRaw = VideoPreviewMode.video.rawValue
+    @AppStorage("videoPreviewMuted") private var videoPreviewMuted = true
     @ObservedObject private var nav = AppNavigation.shared
 
     private var languageBinding: Binding<AppLanguage> {
@@ -513,6 +515,12 @@ private struct GeneralSection: View {
         Binding(
             get: { AppearanceTheme(rawValue: appearanceThemeRaw) ?? .system },
             set: { appearanceThemeRaw = $0.rawValue }
+        )
+    }
+    private var videoPreviewModeBinding: Binding<VideoPreviewMode> {
+        Binding(
+            get: { VideoPreviewMode(rawValue: videoPreviewModeRaw) ?? .video },
+            set: { videoPreviewModeRaw = $0.rawValue }
         )
     }
     // Read/write the @Observable singleton directly so the swatch ring also
@@ -644,6 +652,35 @@ private struct GeneralSection: View {
                     subtitle: L("settings.window.trimTrailing.subtitle")
                 ) {
                     Toggle("", isOn: $trimTrailing)
+                        .labelsHidden()
+                        .toggleStyle(.switch)
+                        .tint(.appAccent)
+                }
+            }
+
+            SettingsGroup(icon: "play.rectangle", title: L("settings.preview.title"), tint: .appAccent) {
+                SettingsRow(
+                    icon: "film",
+                    iconTint: .appAccent,
+                    title: L("settings.preview.videoMode.title"),
+                    subtitle: L("settings.preview.videoMode.subtitle")
+                ) {
+                    SettingsSegmented(
+                        selection: videoPreviewModeBinding,
+                        options: VideoPreviewMode.allCases.map {
+                            .init(value: $0, title: $0.displayName, icon: $0.icon)
+                        },
+                        tint: .appAccent
+                    )
+                    .frame(width: 260)
+                }
+                SettingsRow(
+                    icon: videoPreviewMuted ? "speaker.slash" : "speaker.wave.2",
+                    iconTint: .appAccent,
+                    title: L("settings.preview.videoMuted"),
+                    subtitle: L("settings.preview.videoMuted.subtitle")
+                ) {
+                    Toggle("", isOn: $videoPreviewMuted)
                         .labelsHidden()
                         .toggleStyle(.switch)
                         .tint(.appAccent)
@@ -1448,19 +1485,16 @@ private struct AboutSection: View {
         Bundle.main.object(forInfoDictionaryKey: "NSHumanReadableCopyright") as? String ?? ""
     }
 
-    private var appIcon: NSImage {
-        NSImage(named: NSImage.applicationIconName)
-            ?? NSWorkspace.shared.icon(forFile: Bundle.main.bundlePath)
-    }
-
     var body: some View {
         VStack(spacing: 18) {
             SettingCard(title: appName, subtitle: nil) {
                 HStack(spacing: 16) {
-                    Image(nsImage: appIcon)
+                    Image("AppLogo")
                         .resizable()
                         .interpolation(.high)
                         .frame(width: 72, height: 72)
+                        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                        .shadow(color: .black.opacity(0.12), radius: 5, y: 2)
                     VStack(alignment: .leading, spacing: 4) {
                         Text(appName)
                             .font(.system(size: 18, weight: .semibold))
