@@ -24,7 +24,9 @@ struct SettingsPanelView: View {
         case shortcut
         case filter
         case merge
+        case mcp
         case data
+        case about
         var id: Self { self }
         var localizedTitle: String {
             switch self {
@@ -32,7 +34,9 @@ struct SettingsPanelView: View {
             case .shortcut: return L("settings.tab.shortcut")
             case .filter:   return L("settings.tab.filter")
             case .merge:    return L("settings.tab.merge")
+            case .mcp:      return L("settings.tab.mcp")
             case .data:     return L("settings.tab.data")
+            case .about:    return L("settings.tab.about")
             }
         }
     }
@@ -152,8 +156,12 @@ struct SettingsPanelView: View {
             FilterSection()
         case .merge:
             MergeSection()
+        case .mcp:
+            MCPSection()
         case .data:
             DataSection()
+        case .about:
+            AboutSection()
         }
     }
 }
@@ -1012,6 +1020,85 @@ private struct MergeSection: View {
     }
 }
 
+// MARK: - MCP
+
+private struct MCPSection: View {
+    @AppStorage("mcpEnabled") private var mcpEnabled = true
+
+    private var executablePath: String {
+        Bundle.main.executablePath ?? ""
+    }
+
+    private var configJSON: String {
+        """
+        {
+          "mcpServers": {
+            "clipboard": {
+              "command": "\(executablePath)",
+              "args": ["--mcp"]
+            }
+          }
+        }
+        """
+    }
+
+    var body: some View {
+        VStack(spacing: 18) {
+            SettingsGroup(icon: "network", title: L("settings.mcp.title"), tint: .blue) {
+                SettingsRow(
+                    icon: "switch.2",
+                    iconTint: .blue,
+                    title: L("settings.mcp.enable"),
+                    subtitle: L("settings.mcp.enable.subtitle")
+                ) {
+                    Toggle("", isOn: $mcpEnabled)
+                        .labelsHidden()
+                        .toggleStyle(.switch)
+                }
+            }
+
+            SettingCard(
+                title: L("settings.mcp.config.title"),
+                subtitle: L("settings.mcp.config.subtitle")
+            ) {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text(configJSON)
+                        .font(.system(size: 11, design: .monospaced))
+                        .foregroundStyle(.primary)
+                        .textSelection(.enabled)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(10)
+                        .background(
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(.background.opacity(0.5))
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8)
+                                .strokeBorder(.separator.opacity(0.4), lineWidth: 0.5)
+                        )
+
+                    HStack {
+                        Spacer()
+                        Button {
+                            let pb = NSPasteboard.general
+                            pb.clearContents()
+                            pb.setString(configJSON, forType: .string)
+                            ToastCenter.shared.show(
+                                L("settings.mcp.copied"),
+                                systemImage: "doc.on.clipboard.fill",
+                                tint: .accentColor
+                            )
+                        } label: {
+                            Label(L("settings.mcp.copyButton"), systemImage: "doc.on.clipboard")
+                        }
+                    }
+                }
+            }
+        }
+        .opacity(mcpEnabled ? 1 : 0.6)
+    }
+}
+
 // MARK: - Data (export / clear)
 
 private struct DataSection: View {
@@ -1146,6 +1233,167 @@ private struct DataSection: View {
             get: { filters.retentionDays(for: type) },
             set: { filters.setRetentionDays($0, for: type) }
         )
+    }
+}
+
+// MARK: - About
+
+private struct AboutSection: View {
+    private var appName: String {
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String
+            ?? Bundle.main.object(forInfoDictionaryKey: "CFBundleName") as? String
+            ?? "ClipBoard Manager"
+    }
+
+    private var version: String {
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "—"
+    }
+
+    private var build: String {
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "—"
+    }
+
+    private var copyright: String {
+        Bundle.main.object(forInfoDictionaryKey: "NSHumanReadableCopyright") as? String ?? ""
+    }
+
+    private var appIcon: NSImage {
+        NSImage(named: NSImage.applicationIconName)
+            ?? NSWorkspace.shared.icon(forFile: Bundle.main.bundlePath)
+    }
+
+    var body: some View {
+        VStack(spacing: 18) {
+            SettingCard(title: appName, subtitle: nil) {
+                HStack(spacing: 16) {
+                    Image(nsImage: appIcon)
+                        .resizable()
+                        .interpolation(.high)
+                        .frame(width: 72, height: 72)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(appName)
+                            .font(.system(size: 18, weight: .semibold))
+                        Text(L("settings.about.versionFormat", version, build))
+                            .font(.system(size: 12, design: .monospaced))
+                            .foregroundStyle(.secondary)
+                        if !copyright.isEmpty {
+                            Text(copyright)
+                                .font(.system(size: 11))
+                                .foregroundStyle(.tertiary)
+                        }
+                    }
+                    Spacer(minLength: 0)
+                }
+            }
+
+            SettingsGroup(icon: "info.circle", title: L("settings.about.info.title"), tint: .blue) {
+                SettingsRow(
+                    icon: "number",
+                    iconTint: .blue,
+                    title: L("settings.about.version"),
+                    subtitle: nil
+                ) {
+                    Text(version)
+                        .font(.system(size: 12, design: .monospaced))
+                        .foregroundStyle(.secondary)
+                        .textSelection(.enabled)
+                }
+                SettingsRow(
+                    icon: "hammer",
+                    iconTint: .indigo,
+                    title: L("settings.about.build"),
+                    subtitle: nil
+                ) {
+                    Text(build)
+                        .font(.system(size: 12, design: .monospaced))
+                        .foregroundStyle(.secondary)
+                        .textSelection(.enabled)
+                }
+                SettingsRow(
+                    icon: "shippingbox",
+                    iconTint: .teal,
+                    title: L("settings.about.bundleId"),
+                    subtitle: nil
+                ) {
+                    Text(Bundle.main.bundleIdentifier ?? "—")
+                        .font(.system(size: 12, design: .monospaced))
+                        .foregroundStyle(.secondary)
+                        .textSelection(.enabled)
+                }
+                SettingsRow(
+                    icon: "desktopcomputer",
+                    iconTint: .purple,
+                    title: L("settings.about.system"),
+                    subtitle: nil
+                ) {
+                    Text(systemVersionString())
+                        .font(.system(size: 12, design: .monospaced))
+                        .foregroundStyle(.secondary)
+                        .textSelection(.enabled)
+                }
+            }
+
+            SettingsGroup(icon: "link", title: L("settings.about.links.title"), tint: .green) {
+                SettingsRow(
+                    icon: "chevron.left.forwardslash.chevron.right",
+                    iconTint: .green,
+                    title: L("settings.about.repo"),
+                    subtitle: Self.repoURL.absoluteString
+                ) {
+                    Button {
+                        NSWorkspace.shared.open(Self.repoURL)
+                    } label: {
+                        Label(L("settings.about.repo.open"), systemImage: "arrow.up.right.square")
+                            .font(.system(size: 12))
+                    }
+                }
+                SettingsRow(
+                    icon: "exclamationmark.bubble",
+                    iconTint: .red,
+                    title: L("settings.about.feedback"),
+                    subtitle: L("settings.about.feedback.subtitle")
+                ) {
+                    Button {
+                        NSWorkspace.shared.open(Self.issuesURL)
+                    } label: {
+                        Label(L("settings.about.feedback.open"), systemImage: "arrow.up.right.square")
+                            .font(.system(size: 12))
+                    }
+                }
+                SettingsRow(
+                    icon: "doc.text",
+                    iconTint: .orange,
+                    title: L("settings.about.license"),
+                    subtitle: L("settings.about.license.subtitle")
+                ) {
+                    Button {
+                        NSWorkspace.shared.open(Self.licenseURL)
+                    } label: {
+                        Label("MIT", systemImage: "arrow.up.right.square")
+                            .font(.system(size: 12))
+                    }
+                }
+            }
+
+            SettingCard(
+                title: L("settings.about.acknowledgements.title"),
+                subtitle: L("settings.about.acknowledgements.subtitle")
+            ) {
+                Text(L("settings.about.acknowledgements.body"))
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+
+    private static let repoURL = URL(string: "https://github.com/wavever/ClipBoardManager")!
+    private static let licenseURL = URL(string: "https://github.com/wavever/ClipBoardManager/blob/main/LICENSE")!
+    private static let issuesURL = URL(string: "https://github.com/wavever/ClipBoardManager/issues")!
+
+    private func systemVersionString() -> String {
+        let v = ProcessInfo.processInfo.operatingSystemVersion
+        return "macOS \(v.majorVersion).\(v.minorVersion).\(v.patchVersion)"
     }
 }
 
