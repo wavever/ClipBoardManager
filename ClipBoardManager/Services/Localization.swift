@@ -111,6 +111,7 @@ extension L10n {
         "common.clearSearch": "清空搜索",
         "search.semantic.indexing.toast": "语义索引仍在生成，请稍后再试",
         "search.semantic.disabled.toast": "语义搜索已在设置中关闭",
+        "search.tagPicker.empty": "没有匹配的标签",
 
         // types
         "type.text": "文本",
@@ -531,6 +532,7 @@ extension L10n {
         "common.clearSearch": "Clear search",
         "search.semantic.indexing.toast": "Semantic index is still being built — try again shortly",
         "search.semantic.disabled.toast": "Semantic search is disabled in Settings",
+        "search.tagPicker.empty": "No matching tags",
 
         // types
         "type.text": "Text",

@@ -32,6 +32,10 @@ class ClipboardViewModel: ObservableObject {
     static let semanticFeatureEnabledKey = "semanticSearchFeatureEnabled"
 
     @Published var searchText = ""
+    /// Lowercased tag keys narrowing the visible list. An item passes the
+    /// filter when any of its tags (case-insensitive) appears in this set —
+    /// i.e. multi-select is union, matching how users mentally combine tags.
+    @Published var activeTags: Set<String> = []
     @Published var selectedType: ClipboardItemType? = nil
     @Published var selectedScope: ListScope = .all
     @Published var isMonitoring = true
@@ -589,6 +593,36 @@ class ClipboardViewModel: ObservableObject {
 
     // MARK: - Filtering
 
+    /// Searches the live history for every distinct tag the user has applied
+    /// (case-insensitive). Returns display strings in their first-seen casing,
+    /// sorted alphabetically — the search bar's `#` picker reads this list.
+    func allKnownTags(in items: [ClipboardItem]) -> [String] {
+        var seen: [String: String] = [:]
+        for item in items where item.deletedAt == nil {
+            for tag in item.tags {
+                let key = tag.lowercased()
+                if seen[key] == nil { seen[key] = tag }
+            }
+        }
+        return seen.values.sorted { $0.localizedCompare($1) == .orderedAscending }
+    }
+
+    /// Search text with the trailing `#token` (in-progress tag autocomplete)
+    /// removed, so an open picker doesn't bleed into the keyword filter.
+    private var strippedSearchQuery: String {
+        let trimmed = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let hashIdx = trimmed.lastIndex(of: "#") else { return trimmed }
+        // Only strip if the `#` starts a token (start-of-string or whitespace
+        // before it) and the rest contains no whitespace.
+        if hashIdx > trimmed.startIndex,
+           !trimmed[trimmed.index(before: hashIdx)].isWhitespace {
+            return trimmed
+        }
+        let rest = trimmed[trimmed.index(after: hashIdx)...]
+        if rest.contains(where: { $0.isWhitespace }) { return trimmed }
+        return String(trimmed[..<hashIdx]).trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
     func filteredItems(_ items: [ClipboardItem]) -> [ClipboardItem] {
         // Active history never shows soft-deleted entries — those live in
         // the trash screen until they're restored or expire.
@@ -603,6 +637,15 @@ class ClipboardViewModel: ObservableObject {
             result = result.filter { $0.itemType == type }
         }
 
+        if !activeTags.isEmpty {
+            result = result.filter { item in
+                for tag in item.tags where activeTags.contains(tag.lowercased()) {
+                    return true
+                }
+                return false
+            }
+        }
+
         // When merging, the user can only combine items of one type. Once a
         // first item is selected we lock the visible list to that same type so
         // incompatible rows can't be tapped by mistake.
@@ -611,7 +654,7 @@ class ClipboardViewModel: ObservableObject {
             result = result.filter { $0.itemType == anchorType }
         }
 
-        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        let query = strippedSearchQuery
         if !query.isEmpty {
             // Semantic search is only honored when the feature is enabled and
             // the embedding index isn't being rebuilt — otherwise the user

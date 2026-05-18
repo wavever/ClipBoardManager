@@ -319,6 +319,8 @@ struct MainWindowView: View {
             ToolbarSearchField(
                 text: $vm.searchText,
                 semantic: $vm.semanticSearchEnabled,
+                activeTags: $vm.activeTags,
+                availableTags: vm.allKnownTags(in: allItems),
                 featureEnabled: vm.semanticFeatureEnabled,
                 indexing: vm.isBackfillingEmbeddings
             )
@@ -660,6 +662,12 @@ private struct HeaderStatDivider: View {
 private struct ToolbarSearchField: View {
     @Binding var text: String
     @Binding var semantic: Bool
+    /// Lowercased keys of tags that are currently narrowing the list. Owned
+    /// by the VM so other components (filters, list rendering) can observe.
+    @Binding var activeTags: Set<String>
+    /// Display strings (original casing) of every tag in the live history —
+    /// the source for the `#` autocomplete picker.
+    var availableTags: [String]
     /// Master feature toggle from settings — when false, the semantic
     /// segment hides entirely so the search bar collapses to plain text.
     var featureEnabled: Bool
@@ -669,23 +677,85 @@ private struct ToolbarSearchField: View {
     var indexing: Bool
 
     @FocusState private var focused: Bool
+    @State private var showingTagPicker = false
 
     /// Active mode color — accent for full-text, purple for semantic so
     /// users can tell at a glance which mode is driving the results.
     private var tint: Color { semantic ? .purple : .accentColor }
 
+    /// Trailing `#token` at the end of `text`, or nil. Treated as a token
+    /// only when the `#` starts the string or follows whitespace, and no
+    /// whitespace appears after it — that way a literal `#` in the middle
+    /// of a query (e.g. `bug #42`) still triggers the picker, but pasting
+    /// text containing `#tag stuff` does not.
+    private var tagQuery: String? {
+        guard let hashIdx = text.lastIndex(of: "#") else { return nil }
+        if hashIdx > text.startIndex,
+           !text[text.index(before: hashIdx)].isWhitespace {
+            return nil
+        }
+        let rest = text[text.index(after: hashIdx)...]
+        if rest.contains(where: { $0.isWhitespace }) { return nil }
+        return String(rest)
+    }
+
+    /// Tags shown in the popover: not already selected, and (when the user
+    /// has typed characters after `#`) case-insensitively contains the query.
+    private var suggestedTags: [String] {
+        let pool = availableTags.filter { !activeTags.contains($0.lowercased()) }
+        guard let q = tagQuery, !q.isEmpty else { return pool }
+        return pool.filter { $0.localizedCaseInsensitiveContains(q) }
+    }
+
+    private var sortedActiveTags: [String] {
+        activeTags.sorted()
+    }
+
+    private func displayName(forKey key: String) -> String {
+        availableTags.first(where: { $0.lowercased() == key }) ?? key
+    }
+
+    private func selectTag(_ tag: String) {
+        if let hashIdx = text.lastIndex(of: "#") {
+            text = String(text[..<hashIdx])
+        }
+        activeTags.insert(tag.lowercased())
+        showingTagPicker = false
+    }
+
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 6) {
             Image(systemName: "magnifyingglass")
                 .font(.system(size: 12, weight: .medium))
                 .foregroundStyle(focused ? tint : .secondary)
                 .animation(.easeOut(duration: 0.15), value: focused)
+            ForEach(sortedActiveTags, id: \.self) { key in
+                TagChipInline(label: displayName(forKey: key)) {
+                    activeTags.remove(key)
+                }
+            }
             TextField(semantic ? L("common.semanticSearch") : L("common.searchContent"), text: $text)
                 .textFieldStyle(.plain)
                 .font(.system(size: 13))
                 .focused($focused)
-            if !text.isEmpty {
-                Button { text = "" } label: {
+                .onChange(of: text) { _, _ in
+                    showingTagPicker = (tagQuery != nil)
+                }
+                .popover(
+                    isPresented: $showingTagPicker,
+                    attachmentAnchor: .point(.bottomLeading),
+                    arrowEdge: .top
+                ) {
+                    TagSuggestionPopover(
+                        tags: suggestedTags,
+                        onSelect: selectTag
+                    )
+                }
+            if !text.isEmpty || !activeTags.isEmpty {
+                Button {
+                    text = ""
+                    activeTags.removeAll()
+                } label: {
                     Image(systemName: "xmark.circle.fill")
                         .font(.system(size: 11))
                         .foregroundStyle(.tertiary)
@@ -756,6 +826,101 @@ private struct ToolbarSearchField: View {
         .onChange(of: indexing) { _, isOn in
             if isOn, semantic { semantic = false }
         }
+    }
+}
+
+/// Inline tag pill inside the search bar. Shows the tag label plus an `×`
+/// that removes it from the active filter set.
+private struct TagChipInline: View {
+    let label: String
+    let onRemove: () -> Void
+
+    var body: some View {
+        HStack(spacing: 4) {
+            Image(systemName: "tag.fill")
+                .font(.system(size: 8, weight: .semibold))
+            Text(label)
+                .font(.system(size: 11, weight: .medium))
+                .lineLimit(1)
+            Button(action: onRemove) {
+                Image(systemName: "xmark")
+                    .font(.system(size: 8, weight: .bold))
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(.secondary)
+        }
+        .padding(.horizontal, 6)
+        .padding(.vertical, 2)
+        .background(
+            Capsule(style: .continuous)
+                .fill(Color.accentColor.opacity(0.18))
+        )
+        .overlay(
+            Capsule(style: .continuous)
+                .strokeBorder(Color.accentColor.opacity(0.35), lineWidth: 0.5)
+        )
+        .foregroundStyle(Color.accentColor)
+        .fixedSize()
+    }
+}
+
+/// Popover shown beneath the search field while the user is typing a `#tag`
+/// query. Lists available tags (filtered by the query) and forwards taps to
+/// the caller, which inserts the tag and clears the typed token.
+private struct TagSuggestionPopover: View {
+    let tags: [String]
+    let onSelect: (String) -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            if tags.isEmpty {
+                Text(L("search.tagPicker.empty"))
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+                    .padding(12)
+            } else {
+                ScrollView {
+                    LazyVStack(alignment: .leading, spacing: 0) {
+                        ForEach(tags, id: \.self) { tag in
+                            TagSuggestionRow(tag: tag) { onSelect(tag) }
+                        }
+                    }
+                    .padding(.vertical, 4)
+                }
+                .frame(maxHeight: 220)
+            }
+        }
+        .frame(width: 200)
+    }
+}
+
+private struct TagSuggestionRow: View {
+    let tag: String
+    let action: () -> Void
+
+    @State private var hovering = false
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 6) {
+                Image(systemName: "tag.fill")
+                    .font(.system(size: 10))
+                    .foregroundStyle(Color.accentColor)
+                Text(tag)
+                    .font(.system(size: 12))
+                    .lineLimit(1)
+                Spacer(minLength: 0)
+            }
+            .padding(.vertical, 5)
+            .padding(.horizontal, 10)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                Rectangle().fill(hovering ? Color.accentColor.opacity(0.15) : Color.clear)
+            )
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering = $0 }
     }
 }
 
