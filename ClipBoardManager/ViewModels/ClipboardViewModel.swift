@@ -3,6 +3,27 @@ import SwiftUI
 import SwiftData
 import AppKit
 
+/// Combinator for the tag filter chips in the search bar.
+///
+/// - `any` — item passes if *any* of its tags matches one of the selected
+///   keys (set union / boolean OR). The common case.
+/// - `all` — item passes only if it carries *every* selected key
+///   (intersection / boolean AND). Useful for narrowing into a single
+///   conceptual bucket.
+enum TagFilterMode: String, CaseIterable, Identifiable {
+    case any
+    case all
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .any: return L("search.tagMode.any")
+        case .all: return L("search.tagMode.all")
+        }
+    }
+}
+
 enum ListScope: String, CaseIterable, Identifiable {
     case all
     case favorites
@@ -32,10 +53,13 @@ class ClipboardViewModel: ObservableObject {
     static let semanticFeatureEnabledKey = "semanticSearchFeatureEnabled"
 
     @Published var searchText = ""
-    /// Lowercased tag keys narrowing the visible list. An item passes the
-    /// filter when any of its tags (case-insensitive) appears in this set —
-    /// i.e. multi-select is union, matching how users mentally combine tags.
+    /// Lowercased tag keys narrowing the visible list. Matching is
+    /// case-insensitive; how the keys combine (union vs intersection) is
+    /// driven by `tagFilterMode`.
     @Published var activeTags: Set<String> = []
+    /// Combinator for `activeTags`. Defaults to union (any of) since one
+    /// tag is the common case and OR matches that mental model.
+    @Published var tagFilterMode: TagFilterMode = .any
     @Published var selectedType: ClipboardItemType? = nil
     @Published var selectedScope: ListScope = .all
     @Published var isMonitoring = true
@@ -638,11 +662,19 @@ class ClipboardViewModel: ObservableObject {
         }
 
         if !activeTags.isEmpty {
-            result = result.filter { item in
-                for tag in item.tags where activeTags.contains(tag.lowercased()) {
-                    return true
+            switch tagFilterMode {
+            case .any:
+                result = result.filter { item in
+                    for tag in item.tags where activeTags.contains(tag.lowercased()) {
+                        return true
+                    }
+                    return false
                 }
-                return false
+            case .all:
+                result = result.filter { item in
+                    let itemKeys = Set(item.tags.map { $0.lowercased() })
+                    return activeTags.isSubset(of: itemKeys)
+                }
             }
         }
 

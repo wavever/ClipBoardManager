@@ -320,6 +320,7 @@ struct MainWindowView: View {
                 text: $vm.searchText,
                 semantic: $vm.semanticSearchEnabled,
                 activeTags: $vm.activeTags,
+                tagFilterMode: $vm.tagFilterMode,
                 availableTags: vm.allKnownTags(in: allItems),
                 featureEnabled: vm.semanticFeatureEnabled,
                 indexing: vm.isBackfillingEmbeddings
@@ -665,6 +666,10 @@ private struct ToolbarSearchField: View {
     /// Lowercased keys of tags that are currently narrowing the list. Owned
     /// by the VM so other components (filters, list rendering) can observe.
     @Binding var activeTags: Set<String>
+    /// Whether multiple tag chips combine as union or intersection. Surfaced
+    /// inline next to the chips once there are at least two; for a single
+    /// tag the distinction is meaningless so we hide the control.
+    @Binding var tagFilterMode: TagFilterMode
     /// Display strings (original casing) of every tag in the live history —
     /// the source for the `#` autocomplete picker.
     var availableTags: [String]
@@ -733,6 +738,9 @@ private struct ToolbarSearchField: View {
                 TagChipInline(label: displayName(forKey: key)) {
                     activeTags.remove(key)
                 }
+            }
+            if activeTags.count >= 2 {
+                TagModeToggle(mode: $tagFilterMode)
             }
             TextField(semantic ? L("common.semanticSearch") : L("common.searchContent"), text: $text)
                 .textFieldStyle(.plain)
@@ -861,6 +869,48 @@ private struct TagChipInline: View {
         )
         .foregroundStyle(Color.accentColor)
         .fixedSize()
+    }
+}
+
+/// Tiny segmented toggle between "any of" (OR) and "all of" (AND) modes for
+/// the active tag chips. Only visible when there are 2+ chips — for a single
+/// tag the modes are equivalent.
+private struct TagModeToggle: View {
+    @Binding var mode: TagFilterMode
+
+    var body: some View {
+        HStack(spacing: 0) {
+            ForEach(TagFilterMode.allCases) { value in
+                Button {
+                    withAnimation(.easeOut(duration: 0.12)) { mode = value }
+                } label: {
+                    Text(value.displayName)
+                        .font(.system(size: 10, weight: mode == value ? .semibold : .medium))
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .foregroundStyle(mode == value ? Color.white : Color.secondary)
+                        .background(
+                            Capsule(style: .continuous)
+                                .fill(mode == value ? Color.accentColor : Color.clear)
+                        )
+                        .contentShape(Capsule())
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(2)
+        .background(
+            Capsule(style: .continuous)
+                .fill(Color.secondary.opacity(0.12))
+        )
+        .overlay(
+            Capsule(style: .continuous)
+                .strokeBorder(Color.secondary.opacity(0.20), lineWidth: 0.5)
+        )
+        .fixedSize()
+        .help(mode == .any
+            ? L("search.tagMode.tooltip.any")
+            : L("search.tagMode.tooltip.all"))
     }
 }
 

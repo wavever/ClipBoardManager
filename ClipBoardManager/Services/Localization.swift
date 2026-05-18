@@ -112,6 +112,10 @@ extension L10n {
         "search.semantic.indexing.toast": "语义索引仍在生成，请稍后再试",
         "search.semantic.disabled.toast": "语义搜索已在设置中关闭",
         "search.tagPicker.empty": "没有匹配的标签",
+        "search.tagMode.any": "任一",
+        "search.tagMode.all": "全部",
+        "search.tagMode.tooltip.any": "命中任一标签即显示（并集）",
+        "search.tagMode.tooltip.all": "必须同时包含所有标签（交集）",
 
         // types
         "type.text": "文本",
@@ -533,6 +537,10 @@ extension L10n {
         "search.semantic.indexing.toast": "Semantic index is still being built — try again shortly",
         "search.semantic.disabled.toast": "Semantic search is disabled in Settings",
         "search.tagPicker.empty": "No matching tags",
+        "search.tagMode.any": "Any",
+        "search.tagMode.all": "All",
+        "search.tagMode.tooltip.any": "Match items with any selected tag (union)",
+        "search.tagMode.tooltip.all": "Match items that have all selected tags (intersection)",
 
         // types
         "type.text": "Text",
