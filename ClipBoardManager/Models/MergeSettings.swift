@@ -94,8 +94,6 @@ final class MergeSettingsStore: ObservableObject {
     @Published var deleteOriginals: Bool { didSet { save() } }
     @Published var textSeparator: MergeSeparatorPreset { didSet { save() } }
     @Published var textCustomSeparator: String { didSet { save() } }
-    @Published var fileSeparator: MergeSeparatorPreset { didSet { save() } }
-    @Published var fileCustomSeparator: String { didSet { save() } }
     @Published var enableImageMerge: Bool { didSet { save() } }
     @Published var imageDirection: ImageMergeDirection { didSet { save() } }
     @Published var imageSpacing: Double { didSet { save() } }
@@ -108,8 +106,6 @@ final class MergeSettingsStore: ObservableObject {
         var deleteOriginals: Bool = false
         var textSeparator: String = MergeSeparatorPreset.doubleNewline.rawValue
         var textCustomSeparator: String = ""
-        var fileSeparator: String = MergeSeparatorPreset.newline.rawValue
-        var fileCustomSeparator: String = ""
         var enableImageMerge: Bool = false
         var imageDirection: String = ImageMergeDirection.vertical.rawValue
         var imageSpacing: Double = 0
@@ -127,8 +123,6 @@ final class MergeSettingsStore: ObservableObject {
         self.deleteOriginals = stored.deleteOriginals
         self.textSeparator = MergeSeparatorPreset(rawValue: stored.textSeparator) ?? .doubleNewline
         self.textCustomSeparator = stored.textCustomSeparator
-        self.fileSeparator = MergeSeparatorPreset(rawValue: stored.fileSeparator) ?? .newline
-        self.fileCustomSeparator = stored.fileCustomSeparator
         self.enableImageMerge = stored.enableImageMerge
         self.imageDirection = ImageMergeDirection(rawValue: stored.imageDirection) ?? .vertical
         self.imageSpacing = stored.imageSpacing
@@ -141,8 +135,6 @@ final class MergeSettingsStore: ObservableObject {
             deleteOriginals: deleteOriginals,
             textSeparator: textSeparator.rawValue,
             textCustomSeparator: textCustomSeparator,
-            fileSeparator: fileSeparator.rawValue,
-            fileCustomSeparator: fileCustomSeparator,
             enableImageMerge: enableImageMerge,
             imageDirection: imageDirection.rawValue,
             imageSpacing: imageSpacing,
@@ -155,9 +147,5 @@ final class MergeSettingsStore: ObservableObject {
 
     func resolvedTextSeparator() -> String {
         textSeparator.resolved(custom: textCustomSeparator)
-    }
-
-    func resolvedFileSeparator() -> String {
-        fileSeparator.resolved(custom: fileCustomSeparator)
     }
 }

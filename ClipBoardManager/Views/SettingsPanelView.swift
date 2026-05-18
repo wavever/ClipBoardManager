@@ -24,7 +24,6 @@ struct SettingsPanelView: View {
         case shortcut
         case filter
         case merge
-        case mcp
         case data
         case about
         var id: Self { self }
@@ -34,7 +33,6 @@ struct SettingsPanelView: View {
             case .shortcut: return L("settings.tab.shortcut")
             case .filter:   return L("settings.tab.filter")
             case .merge:    return L("settings.tab.merge")
-            case .mcp:      return L("settings.tab.mcp")
             case .data:     return L("settings.tab.data")
             case .about:    return L("settings.tab.about")
             }
@@ -72,6 +70,7 @@ struct SettingsPanelView: View {
                 Spacer(minLength: 0)
             }
             .allowsHitTesting(false)
+            .ignoresSafeArea(edges: .top)
         )
     }
 
@@ -156,8 +155,6 @@ struct SettingsPanelView: View {
             FilterSection()
         case .merge:
             MergeSection()
-        case .mcp:
-            MCPSection()
         case .data:
             DataSection()
         case .about:
@@ -350,6 +347,106 @@ struct SettingsSegmented<Value: Hashable>: View {
     }
 }
 
+/// Destructive action with built-in two-step confirmation. The first tap arms
+/// the button (label morphs, background turns solid red); the second tap
+/// executes. Auto-disarms after a short timeout so the dangerous state never
+/// lingers if the user walks away.
+struct ConfirmDestructiveButton: View {
+    let label: String
+    let confirmLabel: String
+    let icon: String
+    let action: () -> Void
+
+    @State private var armed = false
+    @State private var disarmWorkItem: DispatchWorkItem?
+
+    var body: some View {
+        Button {
+            if armed {
+                disarmWorkItem?.cancel()
+                armed = false
+                action()
+            } else {
+                armed = true
+                disarmWorkItem?.cancel()
+                let work = DispatchWorkItem { armed = false }
+                disarmWorkItem = work
+                DispatchQueue.main.asyncAfter(deadline: .now() + 4, execute: work)
+            }
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: armed ? "exclamationmark.triangle.fill" : icon)
+                    .font(.system(size: 12, weight: .semibold))
+                Text(armed ? confirmLabel : label)
+                    .font(.system(size: 13, weight: armed ? .semibold : .regular))
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .foregroundStyle(armed ? Color.white : Color.red)
+            .background(
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .fill(armed ? Color.red : Color.clear)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .strokeBorder(
+                        armed ? Color.clear : Color.red.opacity(0.45),
+                        lineWidth: 1
+                    )
+            )
+            .contentShape(RoundedRectangle(cornerRadius: 6))
+        }
+        .buttonStyle(.plain)
+        .help(armed ? L("common.confirmTooltip") : "")
+    }
+}
+
+/// Inline variant of `SettingCard` — title/subtitle on the left, a single
+/// control vertically centered on the right. Prefer this over `SettingCard`
+/// when the trailing control is a single button or compact widget; falling
+/// back to the stacked card for that case puts the button on its own line
+/// which reads awkwardly.
+struct SettingInlineCard<Control: View>: View {
+    let title: String
+    let subtitle: String?
+    @ViewBuilder var control: () -> Control
+
+    init(title: String, subtitle: String? = nil, @ViewBuilder control: @escaping () -> Control) {
+        self.title = title
+        self.subtitle = subtitle
+        self.control = control
+    }
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 12) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title)
+                    .font(.system(size: 14, weight: .semibold))
+                if let subtitle {
+                    Text(subtitle)
+                        .font(.system(size: 12))
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            Spacer(minLength: 12)
+            control()
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(16)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(.regularMaterial)
+                .opacity(0.7)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .strokeBorder(.separator.opacity(0.4), lineWidth: 0.5)
+        )
+        .shadow(color: .black.opacity(0.04), radius: 6, y: 2)
+    }
+}
+
 /// Standalone titled card — used for sections that don't fit the row layout
 /// (free-form button clusters, full-width pickers, lists with add/remove).
 struct SettingCard<Control: View>: View {
@@ -405,14 +502,6 @@ private struct GeneralSection: View {
 
     @AppStorage("fdaOnboardingDismissed") private var fdaOnboardingDismissed = false
     @ObservedObject private var nav = AppNavigation.shared
-    @EnvironmentObject private var vm: ClipboardViewModel
-
-    private var semanticFeatureBinding: Binding<Bool> {
-        Binding(
-            get: { vm.semanticFeatureEnabled },
-            set: { vm.setSemanticFeatureEnabled($0) }
-        )
-    }
 
     private var languageBinding: Binding<AppLanguage> {
         Binding(
@@ -430,10 +519,10 @@ private struct GeneralSection: View {
     var body: some View {
         VStack(spacing: 18) {
             // Language picker — keep first so users can recover from accidental switches.
-            SettingsGroup(icon: "globe", title: L("settings.language.title"), tint: .blue) {
+            SettingsGroup(icon: "globe", title: L("settings.language.title"), tint: .accentColor) {
                 SettingsRow(
                     icon: "character.bubble",
-                    iconTint: .blue,
+                    iconTint: .accentColor,
                     title: L("settings.language.title"),
                     subtitle: L("settings.language.subtitle")
                 ) {
@@ -444,17 +533,17 @@ private struct GeneralSection: View {
                             .init(value: .en,     title: "English", icon: nil),
                             .init(value: .system, title: L("settings.language.system"), icon: nil),
                         ],
-                        tint: .blue
+                        tint: .accentColor
                     )
                     .frame(width: 320)
                 }
             }
 
             // Appearance theme.
-            SettingsGroup(icon: "paintpalette", title: L("settings.theme.title"), tint: .purple) {
+            SettingsGroup(icon: "paintpalette", title: L("settings.theme.title"), tint: .accentColor) {
                 SettingsRow(
                     icon: "moon.stars",
-                    iconTint: .purple,
+                    iconTint: .accentColor,
                     title: L("settings.theme.title"),
                     subtitle: L("settings.theme.subtitle")
                 ) {
@@ -465,74 +554,90 @@ private struct GeneralSection: View {
                             .init(value: .dark,   title: L("settings.theme.dark"),   icon: "moon"),
                             .init(value: .system, title: L("settings.theme.system"), icon: "desktopcomputer"),
                         ],
-                        tint: .purple
+                        tint: .accentColor
                     )
                     .frame(width: 320)
                 }
             }
 
             // Window behaviour.
-            SettingsGroup(icon: "macwindow", title: L("settings.window.title"), tint: .blue) {
+            SettingsGroup(icon: "macwindow", title: L("settings.window.title"), tint: .accentColor) {
                 SettingsRow(
                     icon: "power",
-                    iconTint: .orange,
+                    iconTint: .accentColor,
                     title: L("settings.window.launchAtLogin"),
                     subtitle: L("settings.window.launchAtLogin.subtitle")
                 ) {
-                    Toggle("", isOn: $launchAtLogin).labelsHidden().toggleStyle(.switch)
+                    Toggle("", isOn: $launchAtLogin)
+                        .labelsHidden()
+                        .toggleStyle(.switch)
+                        .tint(.accentColor)
                 }
                 SettingsRow(
                     icon: "dock.rectangle",
-                    iconTint: .blue,
+                    iconTint: .accentColor,
                     title: L("settings.window.showInDock"),
                     subtitle: L("settings.window.showInDock.subtitle")
                 ) {
-                    Toggle("", isOn: $showInDock).labelsHidden().toggleStyle(.switch)
+                    Toggle("", isOn: $showInDock)
+                        .labelsHidden()
+                        .toggleStyle(.switch)
+                        .tint(.accentColor)
                 }
                 SettingsRow(
                     icon: "menubar.rectangle",
-                    iconTint: .indigo,
+                    iconTint: .accentColor,
                     title: L("settings.window.menuBarIcon"),
                     subtitle: L("settings.window.menuBarIcon.subtitle")
                 ) {
-                    Toggle("", isOn: $menuBarIcon).labelsHidden().toggleStyle(.switch)
+                    Toggle("", isOn: $menuBarIcon)
+                        .labelsHidden()
+                        .toggleStyle(.switch)
+                        .tint(.accentColor)
                 }
                 SettingsRow(
                     icon: "eye.slash",
-                    iconTint: .pink,
+                    iconTint: .accentColor,
                     title: L("settings.window.hideFromCapture"),
                     subtitle: L("settings.window.hideFromCapture.subtitle")
                 ) {
-                    Toggle("", isOn: $hideFromCapture).labelsHidden().toggleStyle(.switch)
+                    Toggle("", isOn: $hideFromCapture)
+                        .labelsHidden()
+                        .toggleStyle(.switch)
+                        .tint(.accentColor)
                 }
                 SettingsRow(
                     icon: "capsule.portrait",
-                    iconTint: .teal,
+                    iconTint: .accentColor,
                     title: L("settings.window.dynamicIsland"),
                     subtitle: L("settings.window.dynamicIsland.subtitle")
                 ) {
                     Toggle("", isOn: $dynamicIslandEnabled)
                         .labelsHidden()
                         .toggleStyle(.switch)
+                        .tint(.accentColor)
                         .onChange(of: dynamicIslandEnabled) { _, newValue in
                             DynamicIslandController.shared.setEnabled(newValue)
                         }
                 }
                 SettingsRow(
                     icon: "scissors",
-                    iconTint: .green,
+                    iconTint: .accentColor,
                     title: L("settings.window.trimTrailing"),
                     subtitle: L("settings.window.trimTrailing.subtitle")
                 ) {
-                    Toggle("", isOn: $trimTrailing).labelsHidden().toggleStyle(.switch)
+                    Toggle("", isOn: $trimTrailing)
+                        .labelsHidden()
+                        .toggleStyle(.switch)
+                        .tint(.accentColor)
                 }
             }
 
             // Storage.
-            SettingsGroup(icon: "internaldrive", title: L("settings.storage.title"), tint: .indigo) {
+            SettingsGroup(icon: "internaldrive", title: L("settings.storage.title"), tint: .accentColor) {
                 SettingsRow(
                     icon: "tray.full",
-                    iconTint: .indigo,
+                    iconTint: .accentColor,
                     title: L("settings.storage.maxRecords"),
                     subtitle: L("settings.storage.maxRecords.subtitle")
                 ) {
@@ -540,7 +645,7 @@ private struct GeneralSection: View {
                 }
                 SettingsRow(
                     icon: "timer",
-                    iconTint: .cyan,
+                    iconTint: .accentColor,
                     title: L("settings.storage.pollInterval"),
                     subtitle: L("settings.storage.pollInterval.subtitle")
                 ) {
@@ -556,44 +661,11 @@ private struct GeneralSection: View {
                 }
             }
 
-            // Semantic search — toggles the entire feature and surfaces the
-            // backfill progress so users know why the search bar's semantic
-            // button is unavailable on first launch / after a clear.
-            SettingsGroup(icon: "sparkle", title: L("settings.semantic.title"), tint: .purple) {
-                SettingsRow(
-                    icon: "wand.and.sparkles",
-                    iconTint: .purple,
-                    title: L("settings.semantic.toggle"),
-                    subtitle: L("settings.semantic.subtitle")
-                ) {
-                    Toggle("", isOn: semanticFeatureBinding)
-                        .labelsHidden()
-                        .toggleStyle(.switch)
-                }
-                if vm.isBackfillingEmbeddings {
-                    SettingsRow(
-                        icon: "arrow.triangle.2.circlepath",
-                        iconTint: .orange,
-                        title: L("settings.semantic.indexing.title"),
-                        subtitle: String(
-                            format: L("settings.semantic.indexing.subtitle.format"),
-                            vm.backfillCompleted,
-                            vm.backfillTotal
-                        )
-                    ) {
-                        ProgressView()
-                            .progressViewStyle(.circular)
-                            .controlSize(.small)
-                    }
-                }
-            }
-
-            // Full Disk Access — free-form card; doesn't fit the row layout.
-            SettingCard(
+            SettingInlineCard(
                 title: L("settings.fda.title"),
                 subtitle: L("settings.fda.subtitle")
             ) {
-                HStack(spacing: 10) {
+                HStack(spacing: 8) {
                     Button {
                         FullDiskAccessOnboardingView.openFullDiskAccessPane()
                     } label: {
@@ -605,7 +677,6 @@ private struct GeneralSection: View {
                     } label: {
                         Label(L("settings.fda.viewOnboarding"), systemImage: "questionmark.circle")
                     }
-                    Spacer()
                 }
             }
         }
@@ -693,19 +764,88 @@ private extension AppShortcut {
 
 private struct FilterSection: View {
     @ObservedObject private var store = FilterSettingsStore.shared
+    @AppStorage("tagFilterMode") private var tagFilterModeRaw: String = TagFilterMode.any.rawValue
+    @EnvironmentObject private var vm: ClipboardViewModel
+
+    private var tagFilterModeBinding: Binding<TagFilterMode> {
+        Binding(
+            get: { TagFilterMode(rawValue: tagFilterModeRaw) ?? .any },
+            set: { tagFilterModeRaw = $0.rawValue }
+        )
+    }
+
+    private var semanticFeatureBinding: Binding<Bool> {
+        Binding(
+            get: { vm.semanticFeatureEnabled },
+            set: { vm.setSemanticFeatureEnabled($0) }
+        )
+    }
 
     var body: some View {
         VStack(spacing: 18) {
-            SettingsGroup(icon: "link.badge.plus", title: L("settings.filter.link.title"), tint: .blue) {
+            SettingsGroup(icon: "link.badge.plus", title: L("settings.filter.link.title"), tint: .accentColor) {
                 SettingsRow(
                     icon: "link",
-                    iconTint: .blue,
+                    iconTint: .accentColor,
                     title: L("settings.filter.stripTracking"),
                     subtitle: L("settings.filter.stripTracking.subtitle")
                 ) {
                     Toggle("", isOn: $store.stripURLTracking)
                         .labelsHidden()
                         .toggleStyle(.switch)
+                        .tint(.accentColor)
+                }
+            }
+
+            SettingsGroup(icon: "tag", title: L("settings.filter.tagMode.title"), tint: .accentColor) {
+                SettingsRow(
+                    icon: "tag.fill",
+                    iconTint: .accentColor,
+                    title: L("settings.filter.tagMode.row"),
+                    subtitle: L("settings.filter.tagMode.subtitle")
+                ) {
+                    SettingsSegmented(
+                        selection: tagFilterModeBinding,
+                        options: [
+                            .init(value: .any, title: L("search.tagMode.any"), icon: nil),
+                            .init(value: .all, title: L("search.tagMode.all"), icon: nil),
+                        ],
+                        tint: .accentColor
+                    )
+                    .frame(width: 200)
+                }
+            }
+
+            // Semantic search — controls the embedding-based search engine.
+            // Moved here from "General" because conceptually it's about how
+            // search filters the list.
+            SettingsGroup(icon: "sparkle", title: L("settings.semantic.title"), tint: .accentColor) {
+                SettingsRow(
+                    icon: "wand.and.sparkles",
+                    iconTint: .accentColor,
+                    title: L("settings.semantic.toggle"),
+                    subtitle: L("settings.semantic.subtitle")
+                ) {
+                    Toggle("", isOn: semanticFeatureBinding)
+                        .labelsHidden()
+                        .toggleStyle(.switch)
+                        .tint(.accentColor)
+                }
+                if vm.isBackfillingEmbeddings {
+                    SettingsRow(
+                        icon: "arrow.triangle.2.circlepath",
+                        iconTint: .accentColor,
+                        title: L("settings.semantic.indexing.title"),
+                        subtitle: String(
+                            format: L("settings.semantic.indexing.subtitle.format"),
+                            vm.backfillCompleted,
+                            vm.backfillTotal
+                        )
+                    ) {
+                        ProgressView()
+                            .progressViewStyle(.circular)
+                            .controlSize(.small)
+                    }
                 }
             }
 
@@ -778,11 +918,11 @@ private struct FilterSection: View {
     }
 
     private var typesCard: some View {
-        SettingsGroup(icon: "square.grid.2x2", title: L("settings.filter.types.title"), tint: .pink) {
+        SettingsGroup(icon: "square.grid.2x2", title: L("settings.filter.types.title"), tint: .accentColor) {
             ForEach(ClipboardItemType.allCases, id: \.self) { type in
                 SettingsRow(
                     icon: type.icon,
-                    iconTint: .pink,
+                    iconTint: .accentColor,
                     title: type.displayName,
                     subtitle: nil
                 ) {
@@ -795,6 +935,7 @@ private struct FilterSection: View {
                     ))
                     .labelsHidden()
                     .toggleStyle(.switch)
+                    .tint(.accentColor)
                 }
             }
         }
@@ -891,13 +1032,14 @@ private struct MergeSection: View {
             SettingsGroup(icon: "square.stack.3d.up", title: L("settings.merge.behavior.title"), tint: .accentColor) {
                 SettingsRow(
                     icon: "trash",
-                    iconTint: .red,
+                    iconTint: .accentColor,
                     title: L("settings.merge.deleteOriginals"),
                     subtitle: L("settings.merge.deleteOriginals.subtitle")
                 ) {
                     Toggle("", isOn: $store.deleteOriginals)
                         .labelsHidden()
                         .toggleStyle(.switch)
+                        .tint(.accentColor)
                 }
                 SettingsRow(
                     icon: "photo.on.rectangle.angled",
@@ -908,6 +1050,7 @@ private struct MergeSection: View {
                     Toggle("", isOn: $store.enableImageMerge)
                         .labelsHidden()
                         .toggleStyle(.switch)
+                        .tint(.accentColor)
                 }
             }
 
@@ -956,73 +1099,70 @@ private struct MergeSection: View {
                 }
             }
 
-            SettingCard(
+            separatorCard(
                 title: L("settings.merge.textSep.title"),
-                subtitle: L("settings.merge.textSep.subtitle")
-            ) {
-                separatorEditor(
-                    selection: $store.textSeparator,
-                    custom: $store.textCustomSeparator,
-                    placeholder: L("settings.merge.textSep.placeholder")
-                )
-            }
-
-            SettingCard(
-                title: L("settings.merge.fileSep.title"),
-                subtitle: L("settings.merge.fileSep.subtitle")
-            ) {
-                separatorEditor(
-                    selection: $store.fileSeparator,
-                    custom: $store.fileCustomSeparator,
-                    placeholder: L("settings.merge.fileSep.placeholder")
-                )
-            }
+                subtitle: L("settings.merge.textSep.subtitle"),
+                selection: $store.textSeparator,
+                custom: $store.textCustomSeparator,
+                placeholder: L("settings.merge.textSep.placeholder")
+            )
         }
     }
 
+    // Inline separator card: title/subtitle on the left, preset picker
+    // vertically centered on the right. When `.custom` is selected, the
+    // text field drops onto a second row so it gets full width to type into.
     @ViewBuilder
-    private func separatorEditor(
+    private func separatorCard(
+        title: String,
+        subtitle: String,
         selection: Binding<MergeSeparatorPreset>,
         custom: Binding<String>,
         placeholder: String
     ) -> some View {
         VStack(alignment: .leading, spacing: 10) {
-            Picker("", selection: selection) {
-                ForEach(MergeSeparatorPreset.allCases) { preset in
-                    Text(preset.displayName).tag(preset)
+            HStack(alignment: .center, spacing: 12) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(title)
+                        .font(.system(size: 14, weight: .semibold))
+                    Text(subtitle)
+                        .font(.system(size: 12))
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
+                Spacer(minLength: 12)
+                Picker("", selection: selection) {
+                    ForEach(MergeSeparatorPreset.allCases) { preset in
+                        Text(preset.displayName).tag(preset)
+                    }
+                }
+                .labelsHidden()
+                .pickerStyle(.menu)
+                .frame(width: 160)
             }
-            .labelsHidden()
-            .pickerStyle(.menu)
-            .frame(width: 160)
-
             if selection.wrappedValue == .custom {
                 TextField(placeholder, text: custom)
                     .textFieldStyle(.roundedBorder)
-            } else {
-                Text(L("settings.merge.previewFormat", previewLabel(for: selection.wrappedValue)))
-                    .font(.system(size: 11, design: .monospaced))
-                    .foregroundStyle(.secondary)
             }
         }
-    }
-
-    private func previewLabel(for preset: MergeSeparatorPreset) -> String {
-        switch preset {
-        case .doubleNewline: return "↵↵ (空行)"
-        case .newline:       return "↵"
-        case .space:         return "␣"
-        case .comma:         return ", "
-        case .semicolon:     return "; "
-        case .tab:           return "→"
-        case .custom:        return ""
-        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(16)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(.regularMaterial)
+                .opacity(0.7)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .strokeBorder(.separator.opacity(0.4), lineWidth: 0.5)
+        )
+        .shadow(color: .black.opacity(0.04), radius: 6, y: 2)
     }
 }
 
-// MARK: - MCP
+// MARK: - MCP (composes into DataSection)
 
-private struct MCPSection: View {
+private struct MCPSettings: View {
     @AppStorage("mcpEnabled") private var mcpEnabled = true
 
     private var executablePath: String {
@@ -1044,16 +1184,17 @@ private struct MCPSection: View {
 
     var body: some View {
         VStack(spacing: 18) {
-            SettingsGroup(icon: "network", title: L("settings.mcp.title"), tint: .blue) {
+            SettingsGroup(icon: "network", title: L("settings.mcp.title"), tint: .accentColor) {
                 SettingsRow(
                     icon: "switch.2",
-                    iconTint: .blue,
+                    iconTint: .accentColor,
                     title: L("settings.mcp.enable"),
                     subtitle: L("settings.mcp.enable.subtitle")
                 ) {
                     Toggle("", isOn: $mcpEnabled)
                         .labelsHidden()
                         .toggleStyle(.switch)
+                        .tint(.accentColor)
                 }
             }
 
@@ -1061,24 +1202,22 @@ private struct MCPSection: View {
                 title: L("settings.mcp.config.title"),
                 subtitle: L("settings.mcp.config.subtitle")
             ) {
-                VStack(alignment: .leading, spacing: 10) {
-                    Text(configJSON)
-                        .font(.system(size: 11, design: .monospaced))
-                        .foregroundStyle(.primary)
-                        .textSelection(.enabled)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(10)
-                        .background(
-                            RoundedRectangle(cornerRadius: 8)
-                                .fill(.background.opacity(0.5))
-                        )
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 8)
-                                .strokeBorder(.separator.opacity(0.4), lineWidth: 0.5)
-                        )
-
-                    HStack {
-                        Spacer()
+                Text(configJSON)
+                    .font(.system(size: 11, design: .monospaced))
+                    .foregroundStyle(.primary)
+                    .textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(10)
+                    .padding(.trailing, 32) // reserve space for the floating copy button
+                    .background(
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(.background.opacity(0.5))
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8)
+                            .strokeBorder(.separator.opacity(0.4), lineWidth: 0.5)
+                    )
+                    .overlay(alignment: .topTrailing) {
                         Button {
                             let pb = NSPasteboard.general
                             pb.clearContents()
@@ -1089,10 +1228,23 @@ private struct MCPSection: View {
                                 tint: .accentColor
                             )
                         } label: {
-                            Label(L("settings.mcp.copyButton"), systemImage: "doc.on.clipboard")
+                            Image(systemName: "doc.on.clipboard")
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundStyle(.secondary)
+                                .frame(width: 24, height: 24)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 6, style: .continuous)
+                                        .fill(.background.opacity(0.8))
+                                )
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 6, style: .continuous)
+                                        .strokeBorder(.separator.opacity(0.4), lineWidth: 0.5)
+                                )
                         }
+                        .buttonStyle(.plain)
+                        .help(L("settings.mcp.copyButton"))
+                        .padding(6)
                     }
-                }
             }
         }
         .opacity(mcpEnabled ? 1 : 0.6)
@@ -1123,21 +1275,22 @@ private struct DataSection: View {
 
     var body: some View {
         VStack(spacing: 18) {
-            SettingsGroup(icon: "trash", title: L("settings.data.trash.title"), tint: .orange) {
+            SettingsGroup(icon: "trash", title: L("settings.data.trash.title"), tint: .accentColor) {
                 SettingsRow(
                     icon: "trash.circle",
-                    iconTint: .orange,
+                    iconTint: .accentColor,
                     title: L("settings.data.trash.enable"),
                     subtitle: L("settings.data.trash.enable.subtitle")
                 ) {
                     Toggle("", isOn: $filters.trashEnabled)
                         .labelsHidden()
                         .toggleStyle(.switch)
+                        .tint(.accentColor)
                 }
                 if filters.trashEnabled {
                     SettingsRow(
                         icon: "clock.arrow.circlepath",
-                        iconTint: .orange,
+                        iconTint: .accentColor,
                         title: L("settings.data.trash.autoClean"),
                         subtitle: L("settings.data.trash.autoClean.subtitle")
                     ) {
@@ -1163,9 +1316,32 @@ private struct DataSection: View {
                     Toggle("", isOn: $stats.enabled)
                         .labelsHidden()
                         .toggleStyle(.switch)
+                        .tint(.accentColor)
+                }
+                SettingsRow(
+                    icon: "chart.bar.xaxis",
+                    iconTint: .accentColor,
+                    title: L("settings.data.export.clearStats"),
+                    subtitle: L("settings.data.stats.clear.subtitle")
+                ) {
+                    ConfirmDestructiveButton(
+                        label: L("settings.data.export.clearStats"),
+                        confirmLabel: L("common.confirmDestructive"),
+                        icon: "trash"
+                    ) {
+                        stats.resetAll()
+                        ToastCenter.shared.show(
+                            L("settings.data.export.clearedStats"),
+                            systemImage: "chart.bar.xaxis",
+                            tint: .red
+                        )
+                    }
                 }
             }
 
+            // Per-type retention. The old "立即清理" button was removed — the
+            // app already runs retention cleanup automatically on a timer, so
+            // the manual trigger had no real effect users could observe.
             SettingCard(
                 title: L("settings.data.retention.title"),
                 subtitle: L("settings.data.retention.subtitle")
@@ -1187,44 +1363,42 @@ private struct DataSection: View {
                         }
                         .padding(.vertical, 3)
                     }
-                    HStack {
-                        Spacer()
-                        Button {
-                            vm.applyRetentionCleanup(context: modelContext)
-                            ToastCenter.shared.show(L("settings.data.retention.cleaned"), systemImage: "wand.and.sparkles", tint: .accentColor)
-                        } label: {
-                            Label(L("settings.data.retention.cleanNow"), systemImage: "wand.and.sparkles")
-                        }
-                    }
-                    .padding(.top, 4)
                 }
             }
 
-            SettingCard(
+            SettingInlineCard(
                 title: L("settings.data.export.title"),
                 subtitle: L("settings.data.export.subtitle")
             ) {
-                HStack(spacing: 10) {
-                    Button {
-                        vm.showExportPanel = true
-                    } label: {
-                        Label(L("settings.data.export.exportButton"), systemImage: "square.and.arrow.up")
-                    }
-                    Spacer()
-                    Button(role: .destructive) {
-                        vm.deleteAll(context: modelContext)
-                        ToastCenter.shared.show(L("settings.data.export.clearedHistory"), systemImage: "trash.fill", tint: .red)
-                    } label: {
-                        Label(L("settings.data.export.clearHistory"), systemImage: "trash")
-                    }
-                    Button(role: .destructive) {
-                        stats.resetAll()
-                        ToastCenter.shared.show(L("settings.data.export.clearedStats"), systemImage: "chart.bar.xaxis", tint: .red)
-                    } label: {
-                        Label(L("settings.data.export.clearStats"), systemImage: "chart.bar.xaxis")
-                    }
+                Button {
+                    vm.showExportPanel = true
+                } label: {
+                    Label(L("settings.data.export.exportButton"), systemImage: "square.and.arrow.up")
                 }
             }
+
+            // Clear history — two-step confirm since it permanently wipes every clip.
+            SettingInlineCard(
+                title: L("settings.data.clear.title"),
+                subtitle: L("settings.data.clear.subtitle")
+            ) {
+                ConfirmDestructiveButton(
+                    label: L("settings.data.export.clearHistory"),
+                    confirmLabel: L("common.confirmDestructive"),
+                    icon: "trash"
+                ) {
+                    vm.deleteAll(context: modelContext)
+                    ToastCenter.shared.show(
+                        L("settings.data.export.clearedHistory"),
+                        systemImage: "trash.fill",
+                        tint: .red
+                    )
+                }
+            }
+
+            // MCP — moved here from its own tab so all data-related controls
+            // (storage, retention, integrations) live together.
+            MCPSettings()
         }
     }
 

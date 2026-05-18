@@ -51,6 +51,7 @@ struct TrashPanelView: View {
                 Spacer(minLength: 0)
             }
             .allowsHitTesting(false)
+            .ignoresSafeArea(edges: .top)
         )
     }
 

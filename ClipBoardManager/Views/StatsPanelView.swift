@@ -22,7 +22,7 @@ struct StatsPanelView: View {
             VStack(spacing: 0) {
                 LinearGradient(
                     colors: [
-                        Color.accentColor.opacity(0.08),
+                        Color.purple.opacity(0.10),
                         Color.clear
                     ],
                     startPoint: .top,
@@ -32,6 +32,10 @@ struct StatsPanelView: View {
                 Spacer(minLength: 0)
             }
             .allowsHitTesting(false)
+            // Extend through the title-bar safe area so the gradient blends
+            // seamlessly with the traffic-light strip instead of cutting off
+            // along the safe-area edge.
+            .ignoresSafeArea(edges: .top)
         )
     }
 
@@ -117,7 +121,6 @@ struct StatsPanelView: View {
 private struct ContributionWall: View {
     @ObservedObject var store: CopyStatsStore
 
-    private let weeks = 53
     private let cellSize: CGFloat = 11
     private let gap: CGFloat = 3
 
@@ -143,6 +146,16 @@ private struct ContributionWall: View {
             f.dateFormat = "yyyy-MM-dd EEEE"
         }
         return f
+    }
+
+    private static var shortWeekdaySymbols: [String] {
+        let f = DateFormatter()
+        if L10n.shared.effectiveLanguage == .zh {
+            f.locale = Locale(identifier: "zh_CN")
+        } else {
+            f.locale = Locale(identifier: "en_US")
+        }
+        return f.shortWeekdaySymbols ?? []
     }
 
     private struct DayCell {
@@ -178,13 +191,23 @@ private struct ContributionWall: View {
     }
 
     private var weekdayLabels: some View {
-        VStack(alignment: .trailing, spacing: gap) {
-            Color.clear.frame(width: 18, height: 12)
+        let firstWeekday = Calendar.current.firstWeekday
+        let symbols = Self.shortWeekdaySymbols
+        let labelWidth: CGFloat = 28
+        return VStack(alignment: .trailing, spacing: gap) {
+            Color.clear.frame(width: labelWidth, height: 12)
             ForEach(0..<7, id: \.self) { row in
-                Text(row == 1 ? "Mon" : row == 3 ? "Wed" : row == 5 ? "Fri" : "")
+                let weekdayIndex = (firstWeekday - 1 + row) % 7
+                let label: String = {
+                    switch weekdayIndex {
+                    case 1, 3, 5: return symbols.indices.contains(weekdayIndex) ? symbols[weekdayIndex] : ""
+                    default: return ""
+                    }
+                }()
+                Text(label)
                     .font(.system(size: 9))
                     .foregroundStyle(.secondary)
-                    .frame(width: 18, height: cellSize, alignment: .trailing)
+                    .frame(width: labelWidth, height: cellSize, alignment: .trailing)
             }
         }
     }
@@ -203,7 +226,7 @@ private struct ContributionWall: View {
         }
 
         return ZStack(alignment: .topLeading) {
-            Color.clear.frame(width: CGFloat(weeks) * (cellSize + gap), height: 12)
+            Color.clear.frame(width: CGFloat(grid.count) * (cellSize + gap), height: 12)
             ForEach(Array(labels.enumerated()), id: \.offset) { _, item in
                 Text(item.text)
                     .font(.system(size: 9))
@@ -244,23 +267,32 @@ private struct ContributionWall: View {
     private func buildGrid() -> [[DayCell]] {
         let calendar = Calendar.current
         let today = calendar.startOfDay(for: Date())
+        let year = calendar.component(.year, from: today)
 
         let firstWeekday = calendar.firstWeekday
-        let todayWeekday = calendar.component(.weekday, from: today)
-        let daysSinceWeekStart = (todayWeekday - firstWeekday + 7) % 7
-        let lastWeekEnd = calendar.date(byAdding: .day, value: 6 - daysSinceWeekStart, to: today) ?? today
+        let jan1 = calendar.date(from: DateComponents(year: year, month: 1, day: 1)) ?? today
+        let dec31 = calendar.date(from: DateComponents(year: year, month: 12, day: 31)) ?? today
 
-        let totalDays = weeks * 7
-        let firstDay = calendar.date(byAdding: .day, value: -(totalDays - 1), to: lastWeekEnd) ?? today
+        let jan1Weekday = calendar.component(.weekday, from: jan1)
+        let daysBeforeJan1 = (jan1Weekday - firstWeekday + 7) % 7
+        let gridStart = calendar.date(byAdding: .day, value: -daysBeforeJan1, to: jan1) ?? jan1
+
+        let dec31Weekday = calendar.component(.weekday, from: dec31)
+        let daysAfterDec31 = (firstWeekday + 6 - dec31Weekday + 7) % 7
+        let gridEnd = calendar.date(byAdding: .day, value: daysAfterDec31, to: dec31) ?? dec31
+
+        let totalDays = (calendar.dateComponents([.day], from: gridStart, to: gridEnd).day ?? 0) + 1
+        let weekCount = totalDays / 7
 
         var grid: [[DayCell]] = []
-        var cursor = firstDay
-        for _ in 0..<weeks {
+        var cursor = gridStart
+        for _ in 0..<weekCount {
             var column: [DayCell] = []
             for _ in 0..<7 {
+                let inYear = calendar.component(.year, from: cursor) == year
                 let isFuture = cursor > today
-                let date: Date? = isFuture ? nil : cursor
-                let count = isFuture ? 0 : store.count(on: cursor)
+                let date: Date? = inYear ? cursor : nil
+                let count = (inYear && !isFuture) ? store.count(on: cursor) : 0
                 column.append(DayCell(date: date, count: count))
                 cursor = calendar.date(byAdding: .day, value: 1, to: cursor) ?? cursor
             }

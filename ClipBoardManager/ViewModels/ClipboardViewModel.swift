@@ -24,6 +24,16 @@ enum TagFilterMode: String, CaseIterable, Identifiable {
     }
 }
 
+/// Which engine drives the search bar. Mutually exclusive — the toolbar shows
+/// these as three segmented buttons.
+enum SearchMode: String, CaseIterable, Identifiable {
+    case fullText
+    case semantic
+    case tag
+
+    var id: String { rawValue }
+}
+
 enum ListScope: String, CaseIterable, Identifiable {
     case all
     case favorites
@@ -51,20 +61,33 @@ class ClipboardViewModel: ObservableObject {
     /// false, the toolbar hides the semantic mode segment and all queries
     /// fall back to keyword search.
     static let semanticFeatureEnabledKey = "semanticSearchFeatureEnabled"
+    static let tagFilterModeKey = "tagFilterMode"
 
     @Published var searchText = ""
     /// Lowercased tag keys narrowing the visible list. Matching is
     /// case-insensitive; how the keys combine (union vs intersection) is
     /// driven by `tagFilterMode`.
     @Published var activeTags: Set<String> = []
-    /// Combinator for `activeTags`. Defaults to union (any of) since one
-    /// tag is the common case and OR matches that mental model.
-    @Published var tagFilterMode: TagFilterMode = .any
+    /// Combinator for `activeTags`. Persisted to UserDefaults so the choice
+    /// survives relaunches and stays in sync with the Settings panel.
+    var tagFilterMode: TagFilterMode {
+        get {
+            let raw = UserDefaults.standard.string(forKey: Self.tagFilterModeKey)
+                ?? TagFilterMode.any.rawValue
+            return TagFilterMode(rawValue: raw) ?? .any
+        }
+        set {
+            objectWillChange.send()
+            UserDefaults.standard.set(newValue.rawValue, forKey: Self.tagFilterModeKey)
+        }
+    }
     @Published var selectedType: ClipboardItemType? = nil
     @Published var selectedScope: ListScope = .all
     @Published var isMonitoring = true
     @Published var showExportPanel = false
-    @Published var semanticSearchEnabled = false
+    /// Active search engine for the toolbar. Persisted only in-memory — defaults
+    /// back to full-text on relaunch, matching the previous behavior.
+    @Published var searchMode: SearchMode = .fullText
     @Published var isSelectionMode = false
     @Published var selectedItemIDs: Set<UUID> = []
     @Published var showSnippetEditor = false
@@ -88,8 +111,8 @@ class ClipboardViewModel: ObservableObject {
         semanticFeatureEnabled = enabled
         // Turning the feature off should also drop the per-search toggle so
         // the next time it's re-enabled the user starts in plain text mode.
-        if !enabled, semanticSearchEnabled {
-            semanticSearchEnabled = false
+        if !enabled, searchMode == .semantic {
+            searchMode = .fullText
         }
     }
 
@@ -491,8 +514,9 @@ class ClipboardViewModel: ObservableObject {
                 preview: preview
             )
         case .file, .video:
-            let sep = settings.resolvedFileSeparator()
-            let mergedContent = sorted.map { $0.content }.joined(separator: sep)
+            // File paths are always merged one-per-line so they paste back as
+            // an ordered list of paths; we don't expose a separator setting.
+            let mergedContent = sorted.map { $0.content }.joined(separator: "\n")
             let names = sorted
                 .map { $0.resolvedFileURL?.lastPathComponent ?? $0.content }
                 .joined(separator: " · ")
@@ -686,18 +710,19 @@ class ClipboardViewModel: ObservableObject {
             result = result.filter { $0.itemType == anchorType }
         }
 
-        let query = strippedSearchQuery
-        if !query.isEmpty {
-            // Semantic search is only honored when the feature is enabled and
-            // the embedding index isn't being rebuilt — otherwise the user
-            // would see partial, jumpy results.
-            let useSemantic = semanticSearchEnabled
-                && semanticFeatureEnabled
-                && !isBackfillingEmbeddings
-            if useSemantic {
-                result = semanticFilter(result, query: query)
-            } else {
-                result = keywordFilter(result, query: query)
+        // In tag mode the text input is a typing buffer for the next chip,
+        // never a keyword query — only `activeTags` matters for filtering.
+        if searchMode != .tag {
+            let query = strippedSearchQuery
+            if !query.isEmpty {
+                let useSemantic = searchMode == .semantic
+                    && semanticFeatureEnabled
+                    && !isBackfillingEmbeddings
+                if useSemantic {
+                    result = semanticFilter(result, query: query)
+                } else {
+                    result = keywordFilter(result, query: query)
+                }
             }
         }
 

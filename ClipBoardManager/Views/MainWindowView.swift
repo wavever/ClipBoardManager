@@ -318,9 +318,8 @@ struct MainWindowView: View {
 
             ToolbarSearchField(
                 text: $vm.searchText,
-                semantic: $vm.semanticSearchEnabled,
+                mode: $vm.searchMode,
                 activeTags: $vm.activeTags,
-                tagFilterMode: $vm.tagFilterMode,
                 availableTags: vm.allKnownTags(in: allItems),
                 featureEnabled: vm.semanticFeatureEnabled,
                 indexing: vm.isBackfillingEmbeddings
@@ -662,16 +661,12 @@ private struct HeaderStatDivider: View {
 
 private struct ToolbarSearchField: View {
     @Binding var text: String
-    @Binding var semantic: Bool
+    @Binding var mode: SearchMode
     /// Lowercased keys of tags that are currently narrowing the list. Owned
     /// by the VM so other components (filters, list rendering) can observe.
     @Binding var activeTags: Set<String>
-    /// Whether multiple tag chips combine as union or intersection. Surfaced
-    /// inline next to the chips once there are at least two; for a single
-    /// tag the distinction is meaningless so we hide the control.
-    @Binding var tagFilterMode: TagFilterMode
     /// Display strings (original casing) of every tag in the live history —
-    /// the source for the `#` autocomplete picker.
+    /// the source for the autocomplete picker.
     var availableTags: [String]
     /// Master feature toggle from settings — when false, the semantic
     /// segment hides entirely so the search bar collapses to plain text.
@@ -684,16 +679,38 @@ private struct ToolbarSearchField: View {
     @FocusState private var focused: Bool
     @State private var showingTagPicker = false
 
-    /// Active mode color — accent for full-text, purple for semantic so
-    /// users can tell at a glance which mode is driving the results.
-    private var tint: Color { semantic ? .purple : .accentColor }
+    /// Active mode color — distinct per mode so users can tell at a glance
+    /// which engine is driving the results.
+    private var tint: Color {
+        switch mode {
+        case .fullText: return .accentColor
+        case .semantic: return .purple
+        case .tag:      return .orange
+        }
+    }
 
-    /// Trailing `#token` at the end of `text`, or nil. Treated as a token
-    /// only when the `#` starts the string or follows whitespace, and no
-    /// whitespace appears after it — that way a literal `#` in the middle
-    /// of a query (e.g. `bug #42`) still triggers the picker, but pasting
-    /// text containing `#tag stuff` does not.
+    private var placeholder: String {
+        // Hide the hint as soon as the user has any active filter (chips or
+        // typed text) — TextField hides its placeholder on non-empty text
+        // automatically, but chips don't, so we suppress it manually.
+        guard activeTags.isEmpty else { return "" }
+        switch mode {
+        case .fullText: return L("common.searchContent")
+        case .semantic: return L("common.semanticSearch")
+        case .tag:      return L("common.tagSearch")
+        }
+    }
+
+    /// Trailing `#token` at the end of `text` in non-tag modes, or the whole
+    /// trailing token in tag mode (where every word is a tag candidate). Nil
+    /// means "no token currently being typed".
     private var tagQuery: String? {
+        if mode == .tag {
+            // Last whitespace-separated word, or empty buffer if the user
+            // just typed a space — either way we want the picker open.
+            let trailing = text.split(separator: " ", omittingEmptySubsequences: false).last.map(String.init) ?? ""
+            return trailing
+        }
         guard let hashIdx = text.lastIndex(of: "#") else { return nil }
         if hashIdx > text.startIndex,
            !text[text.index(before: hashIdx)].isWhitespace {
@@ -705,7 +722,8 @@ private struct ToolbarSearchField: View {
     }
 
     /// Tags shown in the popover: not already selected, and (when the user
-    /// has typed characters after `#`) case-insensitively contains the query.
+    /// has typed characters into the trailing token) case-insensitively
+    /// contains the query.
     private var suggestedTags: [String] {
         let pool = availableTags.filter { !activeTags.contains($0.lowercased()) }
         guard let q = tagQuery, !q.isEmpty else { return pool }
@@ -721,11 +739,64 @@ private struct ToolbarSearchField: View {
     }
 
     private func selectTag(_ tag: String) {
-        if let hashIdx = text.lastIndex(of: "#") {
+        if mode == .tag {
+            // Replace the trailing typing buffer with the picked tag — append
+            // a trailing space so the user can immediately type the next one.
+            if let lastSpace = text.lastIndex(of: " ") {
+                text = String(text[...lastSpace])
+            } else {
+                text = ""
+            }
+        } else if let hashIdx = text.lastIndex(of: "#") {
             text = String(text[..<hashIdx])
         }
         activeTags.insert(tag.lowercased())
         showingTagPicker = false
+    }
+
+    /// Called whenever `text` changes in tag mode. Commits any whitespace-
+    /// terminated tokens as chips (matching available tags case-insensitively
+    /// with prefix fallback). The last token stays in the buffer until the
+    /// user types another space.
+    private func commitTagBufferIfNeeded() {
+        guard mode == .tag else { return }
+        guard text.contains(" ") else { return }
+
+        let parts = text.split(separator: " ", omittingEmptySubsequences: false)
+        let trailing = parts.last.map(String.init) ?? ""
+        let committed = parts.dropLast()
+        let lowercasedTags = availableTags.map { ($0, $0.lowercased()) }
+
+        for raw in committed {
+            let token = String(raw).trimmingCharacters(in: .whitespaces)
+            guard !token.isEmpty else { continue }
+            let key = token.lowercased()
+            if let match = lowercasedTags.first(where: { $0.1 == key })?.0 {
+                activeTags.insert(match.lowercased())
+            } else if let prefix = lowercasedTags.first(where: { $0.1.hasPrefix(key) })?.0 {
+                activeTags.insert(prefix.lowercased())
+            } else {
+                // Unknown tag — still accept it so the user can search for
+                // a tag they remember even if no item carries it yet.
+                activeTags.insert(key)
+            }
+        }
+        text = trailing
+    }
+
+    private func handleSubmit() {
+        guard mode == .tag else { return }
+        let token = text.trimmingCharacters(in: .whitespaces)
+        guard !token.isEmpty else { return }
+        let key = token.lowercased()
+        if let match = availableTags.first(where: { $0.lowercased() == key }) {
+            activeTags.insert(match.lowercased())
+        } else if let prefix = availableTags.first(where: { $0.lowercased().hasPrefix(key) }) {
+            activeTags.insert(prefix.lowercased())
+        } else {
+            activeTags.insert(key)
+        }
+        text = ""
     }
 
     var body: some View {
@@ -734,21 +805,40 @@ private struct ToolbarSearchField: View {
                 .font(.system(size: 12, weight: .medium))
                 .foregroundStyle(focused ? tint : .secondary)
                 .animation(.easeOut(duration: 0.15), value: focused)
-            ForEach(sortedActiveTags, id: \.self) { key in
-                TagChipInline(label: displayName(forKey: key)) {
-                    activeTags.remove(key)
+
+            // Chips live inside a horizontal scroll so they can never push
+            // the outer bar past its max width, regardless of how many
+            // tags the user stacks up.
+            if !sortedActiveTags.isEmpty {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 4) {
+                        ForEach(sortedActiveTags, id: \.self) { key in
+                            TagChipInline(label: displayName(forKey: key)) {
+                                activeTags.remove(key)
+                            }
+                        }
+                    }
+                    .padding(.trailing, 2)
                 }
+                .frame(maxWidth: 140)
             }
-            if activeTags.count >= 2 {
-                TagModeToggle(mode: $tagFilterMode)
-            }
-            TextField(semantic ? L("common.semanticSearch") : L("common.searchContent"), text: $text)
+
+            TextField(placeholder, text: $text)
                 .textFieldStyle(.plain)
                 .font(.system(size: 13))
                 .focused($focused)
+                .help(L("common.searchHint.tooltip"))
+                .frame(maxWidth: .infinity)
                 .onChange(of: text) { _, _ in
-                    showingTagPicker = (tagQuery != nil)
+                    commitTagBufferIfNeeded()
+                    showingTagPicker = pickerShouldShow()
                 }
+                .onChange(of: focused) { _, isFocused in
+                    if mode == .tag {
+                        showingTagPicker = isFocused
+                    }
+                }
+                .onSubmit { handleSubmit() }
                 .popover(
                     isPresented: $showingTagPicker,
                     attachmentAnchor: .point(.bottomLeading),
@@ -759,6 +849,7 @@ private struct ToolbarSearchField: View {
                         onSelect: selectTag
                     )
                 }
+
             if !text.isEmpty || !activeTags.isEmpty {
                 Button {
                     text = ""
@@ -772,22 +863,24 @@ private struct ToolbarSearchField: View {
                 .help(L("common.clearSearch"))
                 .transition(.opacity)
             }
+
+            Divider().frame(height: 12).opacity(0.4)
+            SearchModeSegment(
+                icon: "text.magnifyingglass",
+                title: L("common.searchMode.full"),
+                isOn: mode == .fullText,
+                tint: .accentColor
+            ) {
+                switchMode(to: .fullText)
+            }
+            .focusable(false)
             if featureEnabled {
-                Divider().frame(height: 12).opacity(0.4)
-                SearchModeSegment(
-                    icon: "text.magnifyingglass",
-                    title: L("common.searchMode.full"),
-                    isOn: !semantic,
-                    tint: .accentColor
-                ) {
-                    withAnimation(.easeOut(duration: 0.15)) { semantic = false }
-                }
                 SearchModeSegment(
                     icon: indexing ? "hourglass" : "sparkle",
                     title: indexing
                         ? L("common.searchMode.indexing")
                         : L("common.searchMode.semantic"),
-                    isOn: semantic && !indexing,
+                    isOn: mode == .semantic && !indexing,
                     tint: .purple,
                     disabled: indexing,
                     showsSpinner: indexing
@@ -800,9 +893,19 @@ private struct ToolbarSearchField: View {
                         )
                         return
                     }
-                    withAnimation(.easeOut(duration: 0.15)) { semantic = true }
+                    switchMode(to: .semantic)
                 }
+                .focusable(false)
             }
+            SearchModeSegment(
+                icon: "tag",
+                title: L("common.searchMode.tag"),
+                isOn: mode == .tag,
+                tint: .orange
+            ) {
+                switchMode(to: .tag, clearText: true)
+            }
+            .focusable(false)
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 6)
@@ -818,21 +921,38 @@ private struct ToolbarSearchField: View {
                     lineWidth: focused ? 1 : 0.5
                 )
         )
-        .frame(maxWidth: 360)
-        .animation(.easeOut(duration: 0.18), value: focused)
-        .animation(.easeOut(duration: 0.18), value: semantic)
-        .animation(.easeOut(duration: 0.18), value: indexing)
-        .animation(.easeOut(duration: 0.18), value: featureEnabled)
+        .frame(minWidth: 260, idealWidth: 380, maxWidth: 420)
+        .layoutPriority(1)
         // If settings flip the feature off while we're in semantic mode,
         // fall back to plain text — otherwise the search bar would behave
         // semantically with no visible affordance.
         .onChange(of: featureEnabled) { _, isOn in
-            if !isOn, semantic { semantic = false }
+            if !isOn, mode == .semantic { mode = .fullText }
         }
         // Same idea while a backfill is in-flight: drop into text mode so
         // the user actually sees results until the index is ready.
         .onChange(of: indexing) { _, isOn in
-            if isOn, semantic { semantic = false }
+            if isOn, mode == .semantic { mode = .fullText }
+        }
+    }
+
+    private func pickerShouldShow() -> Bool {
+        if mode == .tag {
+            return focused
+        }
+        return tagQuery != nil
+    }
+
+    /// Commit a mode change without dragging SwiftUI's implicit animation
+    /// transactions along (border tint, popover open/close, segment fill
+    /// would otherwise all cross-fade and feel sluggish).
+    private func switchMode(to newMode: SearchMode, clearText: Bool = false) {
+        var tx = Transaction()
+        tx.disablesAnimations = true
+        withTransaction(tx) {
+            mode = newMode
+            if clearText { text = "" }
+            showingTagPicker = pickerShouldShow()
         }
     }
 }
@@ -869,48 +989,6 @@ private struct TagChipInline: View {
         )
         .foregroundStyle(Color.accentColor)
         .fixedSize()
-    }
-}
-
-/// Tiny segmented toggle between "any of" (OR) and "all of" (AND) modes for
-/// the active tag chips. Only visible when there are 2+ chips — for a single
-/// tag the modes are equivalent.
-private struct TagModeToggle: View {
-    @Binding var mode: TagFilterMode
-
-    var body: some View {
-        HStack(spacing: 0) {
-            ForEach(TagFilterMode.allCases) { value in
-                Button {
-                    withAnimation(.easeOut(duration: 0.12)) { mode = value }
-                } label: {
-                    Text(value.displayName)
-                        .font(.system(size: 10, weight: mode == value ? .semibold : .medium))
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .foregroundStyle(mode == value ? Color.white : Color.secondary)
-                        .background(
-                            Capsule(style: .continuous)
-                                .fill(mode == value ? Color.accentColor : Color.clear)
-                        )
-                        .contentShape(Capsule())
-                }
-                .buttonStyle(.plain)
-            }
-        }
-        .padding(2)
-        .background(
-            Capsule(style: .continuous)
-                .fill(Color.secondary.opacity(0.12))
-        )
-        .overlay(
-            Capsule(style: .continuous)
-                .strokeBorder(Color.secondary.opacity(0.20), lineWidth: 0.5)
-        )
-        .fixedSize()
-        .help(mode == .any
-            ? L("search.tagMode.tooltip.any")
-            : L("search.tagMode.tooltip.all"))
     }
 }
 

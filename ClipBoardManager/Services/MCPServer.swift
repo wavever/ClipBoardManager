@@ -23,6 +23,12 @@ enum MCPServer {
     // MARK: - Entry point
 
     static func run() {
+        let enabled = (UserDefaults.standard.object(forKey: "mcpEnabled") as? Bool) ?? true
+        guard enabled else {
+            log("MCP server disabled in settings; exiting")
+            return
+        }
+
         log("MCP server starting")
 
         let container: ModelContainer
