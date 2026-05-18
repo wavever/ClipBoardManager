@@ -36,20 +36,12 @@ struct MenuBarView: View {
 
     private var header: some View {
         HStack(spacing: 9) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 7)
-                    .fill(
-                        LinearGradient(
-                            colors: [.appAccent, .appAccent.opacity(0.7)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                    .frame(width: 26, height: 26)
-                Image(systemName: "doc.on.clipboard.fill")
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(.white)
-            }
+            Image("AppLogo")
+                .resizable()
+                .interpolation(.high)
+                .frame(width: 26, height: 26)
+                .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
+                .shadow(color: .black.opacity(0.10), radius: 2, y: 1)
             Text(L("main.title"))
                 .font(.system(size: 14, weight: .semibold))
             Spacer()

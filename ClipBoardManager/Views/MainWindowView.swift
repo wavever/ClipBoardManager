@@ -13,6 +13,7 @@ struct MainWindowView: View {
 
     @AppStorage("fdaOnboardingDismissed") private var fdaOnboardingDismissed = false
     @AppStorage("pinnedCollapsed") private var pinnedCollapsed = false
+    @State private var isMergingSelection = false
 
     private var filteredItems: [ClipboardItem] {
         vm.filteredItems(allItems)
@@ -201,27 +202,24 @@ struct MainWindowView: View {
                 RoundedRectangle(cornerRadius: 8)
                     .fill(.secondary.opacity(0.15))
             )
+            .disabled(isMergingSelection)
 
             Button {
-                let result = withAnimation(.spring(response: 0.32, dampingFraction: 0.82)) {
-                    vm.mergeSelected(selected, context: modelContext)
-                }
-                guard result != nil else {
-                    ToastCenter.shared.show(
-                        L("selection.mergeFailed"),
-                        systemImage: "exclamationmark.triangle.fill",
-                        tint: .red
-                    )
-                    return
-                }
-                let suffix = MergeSettingsStore.shared.deleteOriginals ? L("selection.mergedSuffix.deleted") : ""
-                ToastCenter.shared.show(
-                    L("selection.mergedFormat", selected.count) + suffix,
-                    systemImage: "square.stack.3d.up.fill",
-                    tint: .appAccent
-                )
+                performMerge(selected)
             } label: {
-                Label(L("selection.mergeCountFormat", selected.count), systemImage: "square.stack.3d.up.fill")
+                HStack(spacing: 6) {
+                    if isMergingSelection {
+                        ProgressView()
+                            .progressViewStyle(.circular)
+                            .controlSize(.mini)
+                            .tint(.white)
+                            .frame(width: 13, height: 13)
+                        Text(L("selection.merging"))
+                    } else {
+                        Image(systemName: "square.stack.3d.up.fill")
+                        Text(L("selection.mergeCountFormat", selected.count))
+                    }
+                }
                     .font(.system(size: 13, weight: .semibold))
                     .padding(.horizontal, 14)
                     .padding(.vertical, 7)
@@ -230,9 +228,9 @@ struct MainWindowView: View {
             .buttonStyle(.plain)
             .background(
                 RoundedRectangle(cornerRadius: 8)
-                    .fill(canMerge ? Color.appAccent : Color.appAccent.opacity(0.35))
+                    .fill(canMerge && !isMergingSelection ? Color.appAccent : Color.appAccent.opacity(0.35))
             )
-            .disabled(!canMerge)
+            .disabled(!canMerge || isMergingSelection)
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
@@ -257,20 +255,43 @@ struct MainWindowView: View {
         .shadow(color: .black.opacity(0.18), radius: 18, y: 6)
     }
 
+    private func performMerge(_ selected: [ClipboardItem]) {
+        guard !isMergingSelection else { return }
+        let selectedCount = selected.count
+        isMergingSelection = true
+
+        Task { @MainActor in
+            await Task.yield()
+            let result = withAnimation(.spring(response: 0.32, dampingFraction: 0.82)) {
+                vm.mergeSelected(selected, context: modelContext)
+            }
+            isMergingSelection = false
+
+            guard result != nil else {
+                ToastCenter.shared.show(
+                    L("selection.mergeFailed"),
+                    systemImage: "exclamationmark.triangle.fill",
+                    tint: .red
+                )
+                return
+            }
+            let suffix = MergeSettingsStore.shared.deleteOriginals ? L("selection.mergedSuffix.deleted") : ""
+            ToastCenter.shared.show(
+                L("selection.mergedFormat", selectedCount) + suffix,
+                systemImage: "square.stack.3d.up.fill",
+                tint: .appAccent
+            )
+        }
+    }
+
     private var header: some View {
         HStack(spacing: 14) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .fill(Color.appAccent.opacity(0.12))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 10, style: .continuous)
-                            .strokeBorder(Color.appAccent.opacity(0.35), lineWidth: 1)
-                    )
-                    .frame(width: 36, height: 36)
-                Image(systemName: "doc.on.clipboard.fill")
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(Color.appAccent)
-            }
+            Image("AppLogo")
+                .resizable()
+                .interpolation(.high)
+                .frame(width: 36, height: 36)
+                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                .shadow(color: .black.opacity(0.12), radius: 3, y: 1)
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(L("main.title"))
@@ -296,15 +317,7 @@ struct MainWindowView: View {
 
     private var toolbar: some View {
         HStack(spacing: 12) {
-            Picker("", selection: $vm.selectedScope) {
-                ForEach(ListScope.allCases) { scope in
-                    Label(scope.displayName, systemImage: scope.icon).tag(scope)
-                }
-            }
-            .labelsHidden()
-            .pickerStyle(.segmented)
-            .frame(width: 210)
-            .controlSize(.regular)
+            ScopeSegmentedControl(selected: $vm.selectedScope)
 
             Picker("", selection: $vm.selectedType) {
                 Text(L("common.allTypes")).tag(nil as ClipboardItemType?)
@@ -324,8 +337,6 @@ struct MainWindowView: View {
                 featureEnabled: vm.semanticFeatureEnabled,
                 indexing: vm.isBackfillingEmbeddings
             )
-
-            Spacer(minLength: 8)
 
             ToolbarIconButton(systemName: "square.and.pencil", help: L("toolbar.newSnippet")) {
                 vm.showSnippetEditor = true
@@ -684,8 +695,8 @@ private struct ToolbarSearchField: View {
     private var tint: Color {
         switch mode {
         case .fullText: return .appAccent
-        case .semantic: return .purple
-        case .tag:      return .orange
+        case .semantic: return .appAccent
+        case .tag:      return .appAccent
         }
     }
 
@@ -881,7 +892,7 @@ private struct ToolbarSearchField: View {
                         ? L("common.searchMode.indexing")
                         : L("common.searchMode.semantic"),
                     isOn: mode == .semantic && !indexing,
-                    tint: .purple,
+                    tint: .appAccent,
                     disabled: indexing,
                     showsSpinner: indexing
                 ) {
@@ -901,7 +912,7 @@ private struct ToolbarSearchField: View {
                 icon: "tag",
                 title: L("common.searchMode.tag"),
                 isOn: mode == .tag,
-                tint: .orange
+                tint: .appAccent
             ) {
                 switchMode(to: .tag, clearText: true)
             }
@@ -921,7 +932,7 @@ private struct ToolbarSearchField: View {
                     lineWidth: focused ? 1 : 0.5
                 )
         )
-        .frame(minWidth: 260, idealWidth: 380, maxWidth: 420)
+        .frame(minWidth: 200, maxWidth: .infinity)
         .layoutPriority(1)
         // If settings flip the feature off while we're in semantic mode,
         // fall back to plain text — otherwise the search bar would behave
@@ -1049,6 +1060,41 @@ private struct TagSuggestionRow: View {
         }
         .buttonStyle(.plain)
         .onHover { hovering = $0 }
+    }
+}
+
+private struct ScopeSegmentedControl: View {
+    @Binding var selected: ListScope
+
+    var body: some View {
+        HStack(spacing: 0) {
+            ForEach(ListScope.allCases) { scope in
+                let isOn = selected == scope
+                Button {
+                    selected = scope
+                } label: {
+                    Image(systemName: scope.icon)
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(isOn ? .white : .secondary)
+                        .frame(width: 30, height: 24)
+                        .background(
+                            RoundedRectangle(cornerRadius: 5, style: .continuous)
+                                .fill(isOn ? Color.appAccent : Color.clear)
+                        )
+                }
+                .buttonStyle(.plain)
+                .hoverTip(scope.displayName)
+            }
+        }
+        .padding(2)
+        .background(
+            RoundedRectangle(cornerRadius: 7, style: .continuous)
+                .fill(.secondary.opacity(0.12))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 7, style: .continuous)
+                .strokeBorder(.separator.opacity(0.25), lineWidth: 0.5)
+        )
     }
 }
 
