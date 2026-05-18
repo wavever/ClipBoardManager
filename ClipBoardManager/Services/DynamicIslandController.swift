@@ -33,8 +33,9 @@ final class DynamicIslandController: NSObject {
         toastTimer?.invalidate()
         applyState(.toast(itemTypeIcon: itemIcon, preview: preview))
         toastTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: false) { [weak self] _ in
+            guard let self = self else { return }
             Task { @MainActor in
-                self?.applyState(.idle)
+                self.applyState(.idle)
             }
         }
     }
