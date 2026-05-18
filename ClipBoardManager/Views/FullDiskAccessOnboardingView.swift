@@ -11,13 +11,13 @@ struct FullDiskAccessOnboardingView: View {
                     RoundedRectangle(cornerRadius: 10)
                         .fill(
                             LinearGradient(
-                                colors: [.accentColor, .accentColor.opacity(0.7)],
+                                colors: [.appAccent, .appAccent.opacity(0.7)],
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
                             )
                         )
                         .frame(width: 40, height: 40)
-                        .shadow(color: .accentColor.opacity(0.3), radius: 6, y: 2)
+                        .shadow(color: .appAccent.opacity(0.3), radius: 6, y: 2)
                     Image(systemName: "lock.shield.fill")
                         .font(.system(size: 18, weight: .semibold))
                         .foregroundStyle(.white)
@@ -70,7 +70,7 @@ struct FullDiskAccessOnboardingView: View {
                     .padding(.vertical, 9)
                     .background(
                         RoundedRectangle(cornerRadius: 8)
-                            .fill(Color.accentColor)
+                            .fill(Color.appAccent)
                     )
                 }
                 .buttonStyle(.plain)
@@ -124,7 +124,7 @@ struct FullDiskAccessOnboardingView: View {
                 .font(.system(size: 11, weight: .bold, design: .rounded))
                 .foregroundStyle(.white)
                 .frame(width: 18, height: 18)
-                .background(Circle().fill(Color.accentColor))
+                .background(Circle().fill(Color.appAccent))
             Text(text)
                 .font(.system(size: 12.5))
                 .foregroundStyle(.primary.opacity(0.85))

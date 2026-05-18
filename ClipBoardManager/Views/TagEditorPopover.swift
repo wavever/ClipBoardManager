@@ -13,7 +13,7 @@ struct TagEditorPopover: View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(spacing: 8) {
                 Image(systemName: "tag.fill")
-                    .foregroundStyle(Color.accentColor)
+                    .foregroundStyle(Color.appAccent)
                 Text(L("tags.title"))
                     .font(.system(size: 15, weight: .semibold))
                 Spacer()
@@ -95,13 +95,13 @@ struct TagEditorPopover: View {
         .padding(.vertical, 3)
         .background(
             Capsule(style: .continuous)
-                .fill(Color.accentColor.opacity(0.18))
+                .fill(Color.appAccent.opacity(0.18))
         )
         .overlay(
             Capsule(style: .continuous)
-                .strokeBorder(Color.accentColor.opacity(0.35), lineWidth: 0.5)
+                .strokeBorder(Color.appAccent.opacity(0.35), lineWidth: 0.5)
         )
-        .foregroundStyle(Color.accentColor)
+        .foregroundStyle(Color.appAccent)
     }
 }
 

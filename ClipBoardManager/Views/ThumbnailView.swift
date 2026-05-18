@@ -15,15 +15,34 @@ struct ThumbnailView: View {
         self.cornerRadius = cornerRadius
     }
 
+    // Per-type warm muted palette. Replaces the previous saturated system
+    // colors (.blue / .green / .purple / .orange / .cyan / .pink) — those
+    // read as "AI tech" next to the sage accent. Each entry ships a light
+    // and dark variant so contrast holds in both schemes.
     private var iconColor: Color {
-        switch item.itemType {
-        case .text: return .blue
-        case .image: return .green
-        case .video: return .purple
-        case .file: return .orange
-        case .url: return .cyan
-        case .rtf: return .pink
-        }
+        Color(nsColor: NSColor(name: nil) { appearance in
+            let isDark = appearance.bestMatch(from: [.darkAqua, .vibrantDark]) != nil
+            switch item.itemType {
+            case .text:  return isDark
+                ? NSColor(srgbRed: 0.58, green: 0.67, blue: 0.75, alpha: 1)   // warm slate
+                : NSColor(srgbRed: 0.44, green: 0.55, blue: 0.65, alpha: 1)
+            case .image: return isDark
+                ? NSColor(srgbRed: 0.68, green: 0.75, blue: 0.47, alpha: 1)   // olive
+                : NSColor(srgbRed: 0.55, green: 0.62, blue: 0.37, alpha: 1)
+            case .video: return isDark
+                ? NSColor(srgbRed: 0.66, green: 0.61, blue: 0.77, alpha: 1)   // dusty lavender
+                : NSColor(srgbRed: 0.55, green: 0.48, blue: 0.67, alpha: 1)
+            case .file:  return isDark
+                ? NSColor(srgbRed: 0.83, green: 0.57, blue: 0.46, alpha: 1)   // terracotta
+                : NSColor(srgbRed: 0.75, green: 0.47, blue: 0.35, alpha: 1)
+            case .url:   return isDark
+                ? NSColor(srgbRed: 0.48, green: 0.70, blue: 0.70, alpha: 1)   // muted teal
+                : NSColor(srgbRed: 0.36, green: 0.60, blue: 0.60, alpha: 1)
+            case .rtf:   return isDark
+                ? NSColor(srgbRed: 0.77, green: 0.58, blue: 0.58, alpha: 1)   // dusty rose
+                : NSColor(srgbRed: 0.69, green: 0.47, blue: 0.47, alpha: 1)
+            }
+        })
     }
 
     private var canHaveThumbnail: Bool {

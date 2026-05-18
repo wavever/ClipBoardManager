@@ -43,7 +43,7 @@ struct ExportPanelView: View {
                 RoundedRectangle(cornerRadius: 10)
                     .fill(
                         LinearGradient(
-                            colors: [.accentColor, .accentColor.opacity(0.7)],
+                            colors: [.appAccent, .appAccent.opacity(0.7)],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
                         )
@@ -99,7 +99,7 @@ struct ExportPanelView: View {
             HStack(spacing: 6) {
                 Image(systemName: isOn ? "checkmark.circle.fill" : "circle")
                     .font(.system(size: 12))
-                    .foregroundStyle(isOn ? Color.accentColor : Color.secondary)
+                    .foregroundStyle(isOn ? Color.appAccent : Color.secondary)
                 Image(systemName: type.icon)
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
@@ -112,12 +112,12 @@ struct ExportPanelView: View {
             .padding(.vertical, 7)
             .background(
                 RoundedRectangle(cornerRadius: 7)
-                    .fill(isOn ? Color.accentColor.opacity(0.12) : Color.secondary.opacity(0.08))
+                    .fill(isOn ? Color.appAccent.opacity(0.12) : Color.secondary.opacity(0.08))
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 7)
                     .strokeBorder(
-                        isOn ? Color.accentColor.opacity(0.4) : Color.secondary.opacity(0.2),
+                        isOn ? Color.appAccent.opacity(0.4) : Color.secondary.opacity(0.2),
                         lineWidth: 0.5
                     )
             )

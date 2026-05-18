@@ -72,7 +72,7 @@ struct QuickPasteView: View {
         return HStack(spacing: 10) {
             ZStack {
                 Circle()
-                    .fill(isSelected ? Color.accentColor : Color.secondary.opacity(0.18))
+                    .fill(isSelected ? Color.appAccent : Color.secondary.opacity(0.18))
                     .frame(width: 22, height: 22)
                 if let order {
                     Text("\(order)")
@@ -102,13 +102,13 @@ struct QuickPasteView: View {
                                 .font(.system(size: 8, weight: .semibold))
                             Text(tag)
                         }
-                        .foregroundStyle(Color.accentColor)
+                        .foregroundStyle(Color.appAccent)
                     }
                     Text("·")
                     if item.sourceApp == L("remote.universalClipboard") {
                         Image(systemName: "iphone.and.arrow.forward")
                             .font(.system(size: 9, weight: .semibold))
-                            .foregroundStyle(Color.accentColor)
+                            .foregroundStyle(Color.appAccent)
                     }
                     Text(item.sourceApp.isEmpty ? L("common.unknownSource") : item.sourceApp)
                     Spacer(minLength: 0)
@@ -125,7 +125,7 @@ struct QuickPasteView: View {
         .background(
             RoundedRectangle(cornerRadius: 7)
                 .fill(isSelected
-                      ? Color.accentColor.opacity(0.12)
+                      ? Color.appAccent.opacity(0.12)
                       : (isHover ? Color.secondary.opacity(0.10) : Color.clear))
         )
         .contentShape(RoundedRectangle(cornerRadius: 7))

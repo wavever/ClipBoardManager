@@ -30,7 +30,7 @@ struct ClipboardItemRow: View {
             if isSelectionMode {
                 Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
                     .font(.system(size: 20, weight: .regular))
-                    .foregroundStyle(isSelected ? Color.accentColor : Color.secondary.opacity(0.6))
+                    .foregroundStyle(isSelected ? Color.appAccent : Color.secondary.opacity(0.6))
                     .contentTransition(.symbolEffect(.replace))
                     .transition(.scale(scale: 0.6).combined(with: .opacity))
             }
@@ -61,7 +61,7 @@ struct ClipboardItemRow: View {
                         if item.sourceApp == L("remote.universalClipboard") {
                             Image(systemName: "iphone.and.arrow.forward")
                                 .font(.system(size: 10, weight: .semibold))
-                                .foregroundStyle(Color.accentColor)
+                                .foregroundStyle(Color.appAccent)
                         }
                         Text(item.sourceApp)
                             .lineLimit(1)
@@ -93,16 +93,16 @@ struct ClipboardItemRow: View {
                             Text(tag)
                                 .font(.system(size: 10, weight: .medium))
                         }
-                        .foregroundStyle(Color.accentColor)
+                        .foregroundStyle(Color.appAccent)
                         .padding(.horizontal, 6)
                         .padding(.vertical, 1.5)
                         .background(
                             Capsule(style: .continuous)
-                                .fill(Color.accentColor.opacity(0.14))
+                                .fill(Color.appAccent.opacity(0.14))
                         )
                         .overlay(
                             Capsule(style: .continuous)
-                                .strokeBorder(Color.accentColor.opacity(0.35), lineWidth: 0.5)
+                                .strokeBorder(Color.appAccent.opacity(0.35), lineWidth: 0.5)
                         )
                     }
                 }
@@ -126,10 +126,10 @@ struct ClipboardItemRow: View {
                     .opacity(isHovered ? 0.95 : 0.55)
                 if isSelected {
                     RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .fill(Color.accentColor.opacity(0.10))
+                        .fill(Color.appAccent.opacity(0.10))
                 } else if isHovered {
                     RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .fill(Color.accentColor.opacity(0.045))
+                        .fill(Color.appAccent.opacity(0.045))
                 }
             }
         )
@@ -138,7 +138,7 @@ struct ClipboardItemRow: View {
                 .strokeBorder(borderColor, lineWidth: (isHovered || isSelected) ? 1 : 0.5)
         )
         .shadow(
-            color: isHovered ? Color.accentColor.opacity(0.12) : .black.opacity(0.03),
+            color: isHovered ? Color.appAccent.opacity(0.12) : .black.opacity(0.03),
             radius: isHovered ? 6 : 2,
             y: isHovered ? 2 : 1
         )
@@ -156,8 +156,8 @@ struct ClipboardItemRow: View {
     }
 
     private var borderColor: Color {
-        if isSelected { return Color.accentColor }
-        if isHovered  { return Color.accentColor.opacity(0.55) }
+        if isSelected { return Color.appAccent }
+        if isHovered  { return Color.appAccent.opacity(0.55) }
         return Color.secondary.opacity(0.15)
     }
 
@@ -213,7 +213,7 @@ struct ClipboardItemRow: View {
             HoverIconButton(
                 systemName: item.tags.isEmpty ? "tag" : "tag.fill",
                 help: L("action.editTags"),
-                tint: item.tags.isEmpty ? nil : .accentColor,
+                tint: item.tags.isEmpty ? nil : .appAccent,
                 action: { showTagEditor = true }
             )
             if item.itemType == .url {

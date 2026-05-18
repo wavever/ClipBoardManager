@@ -71,7 +71,7 @@ struct StatsPanelView: View {
         VStack(spacing: 14) {
             SettingCard(title: L("stats.summary.title"), subtitle: L("stats.summary.subtitle")) {
                 HStack(spacing: 14) {
-                    summaryTile(label: L("stats.today"), value: store.todayCount(), tint: .accentColor)
+                    summaryTile(label: L("stats.today"), value: store.todayCount(), tint: .appAccent)
                     summaryTile(label: L("stats.last7days"), value: store.countLast(days: 7), tint: .purple)
                     summaryTile(label: L("stats.last30days"), value: store.countLast(days: 30), tint: .blue)
                     summaryTile(label: L("stats.total"), value: store.totalAllTime, tint: .secondary)
@@ -316,10 +316,10 @@ private struct ContributionWall: View {
     private func colorForLevel(_ level: Int) -> Color {
         switch level {
         case 0: return Color.secondary.opacity(0.12)
-        case 1: return Color.accentColor.opacity(0.30)
-        case 2: return Color.accentColor.opacity(0.55)
-        case 3: return Color.accentColor.opacity(0.80)
-        default: return Color.accentColor
+        case 1: return Color.appAccent.opacity(0.30)
+        case 2: return Color.appAccent.opacity(0.55)
+        case 3: return Color.appAccent.opacity(0.80)
+        default: return Color.appAccent
         }
     }
 

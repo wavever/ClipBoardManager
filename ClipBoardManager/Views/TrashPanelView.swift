@@ -146,11 +146,11 @@ struct TrashPanelView: View {
                             Text(tag)
                                 .font(.system(size: 10, weight: .medium))
                         }
-                        .foregroundStyle(Color.accentColor)
+                        .foregroundStyle(Color.appAccent)
                         .padding(.horizontal, 6)
                         .padding(.vertical, 1.5)
                         .background(
-                            Capsule().fill(Color.accentColor.opacity(0.14))
+                            Capsule().fill(Color.appAccent.opacity(0.14))
                         )
                     }
                     Text(L("trash.deletedAtFormat", relativeDeleted(item)))
@@ -166,7 +166,7 @@ struct TrashPanelView: View {
 
             Button {
                 vm.restoreItem(item, context: modelContext)
-                ToastCenter.shared.show(L("trash.restored"), systemImage: "arrow.uturn.backward", tint: .accentColor)
+                ToastCenter.shared.show(L("trash.restored"), systemImage: "arrow.uturn.backward", tint: .appAccent)
             } label: {
                 Label(L("trash.restore"), systemImage: "arrow.uturn.backward")
                     .font(.system(size: 12, weight: .medium))

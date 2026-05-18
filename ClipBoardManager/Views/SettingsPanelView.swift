@@ -60,7 +60,7 @@ struct SettingsPanelView: View {
             VStack(spacing: 0) {
                 LinearGradient(
                     colors: [
-                        Color.accentColor.opacity(0.08),
+                        Color.appAccent.opacity(0.08),
                         Color.clear
                     ],
                     startPoint: .top,
@@ -180,7 +180,7 @@ struct SettingsRow<Trailing: View>: View {
 
     init(
         icon: String? = nil,
-        iconTint: Color = .accentColor,
+        iconTint: Color = .appAccent,
         title: String,
         subtitle: String? = nil,
         @ViewBuilder trailing: @escaping () -> Trailing
@@ -234,7 +234,7 @@ struct SettingsGroup<Content: View>: View {
     init(
         icon: String? = nil,
         title: String? = nil,
-        tint: Color = .accentColor,
+        tint: Color = .appAccent,
         @ViewBuilder content: @escaping () -> Content
     ) {
         self.headerIcon = icon
@@ -306,7 +306,7 @@ struct SettingsSegmented<Value: Hashable>: View {
 
     @Binding var selection: Value
     let options: [Option]
-    var tint: Color = .accentColor
+    var tint: Color = .appAccent
 
     var body: some View {
         HStack(spacing: 4) {
@@ -515,14 +515,23 @@ private struct GeneralSection: View {
             set: { appearanceThemeRaw = $0.rawValue }
         )
     }
+    // Read/write the @Observable singleton directly so the swatch ring also
+    // re-evaluates on selection, and external writes (e.g. CLI / tests) flow
+    // back into the UI.
+    private var accentBinding: Binding<AccentPalette> {
+        Binding(
+            get: { AccentThemeStore.shared.palette },
+            set: { AccentThemeStore.shared.palette = $0 }
+        )
+    }
 
     var body: some View {
         VStack(spacing: 18) {
             // Language picker — keep first so users can recover from accidental switches.
-            SettingsGroup(icon: "globe", title: L("settings.language.title"), tint: .accentColor) {
+            SettingsGroup(icon: "globe", title: L("settings.language.title"), tint: .appAccent) {
                 SettingsRow(
                     icon: "character.bubble",
-                    iconTint: .accentColor,
+                    iconTint: .appAccent,
                     title: L("settings.language.title"),
                     subtitle: L("settings.language.subtitle")
                 ) {
@@ -533,17 +542,17 @@ private struct GeneralSection: View {
                             .init(value: .en,     title: "English", icon: nil),
                             .init(value: .system, title: L("settings.language.system"), icon: nil),
                         ],
-                        tint: .accentColor
+                        tint: .appAccent
                     )
                     .frame(width: 320)
                 }
             }
 
             // Appearance theme.
-            SettingsGroup(icon: "paintpalette", title: L("settings.theme.title"), tint: .accentColor) {
+            SettingsGroup(icon: "paintpalette", title: L("settings.theme.title"), tint: .appAccent) {
                 SettingsRow(
                     icon: "moon.stars",
-                    iconTint: .accentColor,
+                    iconTint: .appAccent,
                     title: L("settings.theme.title"),
                     subtitle: L("settings.theme.subtitle")
                 ) {
@@ -554,90 +563,98 @@ private struct GeneralSection: View {
                             .init(value: .dark,   title: L("settings.theme.dark"),   icon: "moon"),
                             .init(value: .system, title: L("settings.theme.system"), icon: "desktopcomputer"),
                         ],
-                        tint: .accentColor
+                        tint: .appAccent
                     )
                     .frame(width: 320)
+                }
+                SettingsRow(
+                    icon: "drop.fill",
+                    iconTint: .appAccent,
+                    title: L("settings.accent.title"),
+                    subtitle: L("settings.accent.subtitle")
+                ) {
+                    AccentSwatches(selection: accentBinding)
                 }
             }
 
             // Window behaviour.
-            SettingsGroup(icon: "macwindow", title: L("settings.window.title"), tint: .accentColor) {
+            SettingsGroup(icon: "macwindow", title: L("settings.window.title"), tint: .appAccent) {
                 SettingsRow(
                     icon: "power",
-                    iconTint: .accentColor,
+                    iconTint: .appAccent,
                     title: L("settings.window.launchAtLogin"),
                     subtitle: L("settings.window.launchAtLogin.subtitle")
                 ) {
                     Toggle("", isOn: $launchAtLogin)
                         .labelsHidden()
                         .toggleStyle(.switch)
-                        .tint(.accentColor)
+                        .tint(.appAccent)
                 }
                 SettingsRow(
                     icon: "dock.rectangle",
-                    iconTint: .accentColor,
+                    iconTint: .appAccent,
                     title: L("settings.window.showInDock"),
                     subtitle: L("settings.window.showInDock.subtitle")
                 ) {
                     Toggle("", isOn: $showInDock)
                         .labelsHidden()
                         .toggleStyle(.switch)
-                        .tint(.accentColor)
+                        .tint(.appAccent)
                 }
                 SettingsRow(
                     icon: "menubar.rectangle",
-                    iconTint: .accentColor,
+                    iconTint: .appAccent,
                     title: L("settings.window.menuBarIcon"),
                     subtitle: L("settings.window.menuBarIcon.subtitle")
                 ) {
                     Toggle("", isOn: $menuBarIcon)
                         .labelsHidden()
                         .toggleStyle(.switch)
-                        .tint(.accentColor)
+                        .tint(.appAccent)
                 }
                 SettingsRow(
                     icon: "eye.slash",
-                    iconTint: .accentColor,
+                    iconTint: .appAccent,
                     title: L("settings.window.hideFromCapture"),
                     subtitle: L("settings.window.hideFromCapture.subtitle")
                 ) {
                     Toggle("", isOn: $hideFromCapture)
                         .labelsHidden()
                         .toggleStyle(.switch)
-                        .tint(.accentColor)
+                        .tint(.appAccent)
                 }
                 SettingsRow(
                     icon: "capsule.portrait",
-                    iconTint: .accentColor,
+                    iconTint: .appAccent,
                     title: L("settings.window.dynamicIsland"),
                     subtitle: L("settings.window.dynamicIsland.subtitle")
                 ) {
                     Toggle("", isOn: $dynamicIslandEnabled)
                         .labelsHidden()
                         .toggleStyle(.switch)
-                        .tint(.accentColor)
+                        .tint(.appAccent)
                         .onChange(of: dynamicIslandEnabled) { _, newValue in
                             DynamicIslandController.shared.setEnabled(newValue)
                         }
                 }
                 SettingsRow(
                     icon: "scissors",
-                    iconTint: .accentColor,
+                    iconTint: .appAccent,
                     title: L("settings.window.trimTrailing"),
                     subtitle: L("settings.window.trimTrailing.subtitle")
                 ) {
                     Toggle("", isOn: $trimTrailing)
                         .labelsHidden()
                         .toggleStyle(.switch)
-                        .tint(.accentColor)
+                        .tint(.appAccent)
                 }
             }
 
             // Storage.
-            SettingsGroup(icon: "internaldrive", title: L("settings.storage.title"), tint: .accentColor) {
+            SettingsGroup(icon: "internaldrive", title: L("settings.storage.title"), tint: .appAccent) {
                 SettingsRow(
                     icon: "tray.full",
-                    iconTint: .accentColor,
+                    iconTint: .appAccent,
                     title: L("settings.storage.maxRecords"),
                     subtitle: L("settings.storage.maxRecords.subtitle")
                 ) {
@@ -645,7 +662,7 @@ private struct GeneralSection: View {
                 }
                 SettingsRow(
                     icon: "timer",
-                    iconTint: .accentColor,
+                    iconTint: .appAccent,
                     title: L("settings.storage.pollInterval"),
                     subtitle: L("settings.storage.pollInterval.subtitle")
                 ) {
@@ -690,11 +707,11 @@ private struct ShortcutSection: View {
 
     var body: some View {
         VStack(spacing: 18) {
-            SettingsGroup(icon: "command", title: L("settings.shortcut.group.title"), tint: .accentColor) {
+            SettingsGroup(icon: "command", title: L("settings.shortcut.group.title"), tint: .appAccent) {
                 ForEach(AppShortcut.allCases) { shortcut in
                     SettingsRow(
                         icon: shortcut.icon,
-                        iconTint: .accentColor,
+                        iconTint: .appAccent,
                         title: shortcut.displayName,
                         subtitle: shortcut.subtitle
                     ) {
@@ -783,24 +800,24 @@ private struct FilterSection: View {
 
     var body: some View {
         VStack(spacing: 18) {
-            SettingsGroup(icon: "link.badge.plus", title: L("settings.filter.link.title"), tint: .accentColor) {
+            SettingsGroup(icon: "link.badge.plus", title: L("settings.filter.link.title"), tint: .appAccent) {
                 SettingsRow(
                     icon: "link",
-                    iconTint: .accentColor,
+                    iconTint: .appAccent,
                     title: L("settings.filter.stripTracking"),
                     subtitle: L("settings.filter.stripTracking.subtitle")
                 ) {
                     Toggle("", isOn: $store.stripURLTracking)
                         .labelsHidden()
                         .toggleStyle(.switch)
-                        .tint(.accentColor)
+                        .tint(.appAccent)
                 }
             }
 
-            SettingsGroup(icon: "tag", title: L("settings.filter.tagMode.title"), tint: .accentColor) {
+            SettingsGroup(icon: "tag", title: L("settings.filter.tagMode.title"), tint: .appAccent) {
                 SettingsRow(
                     icon: "tag.fill",
-                    iconTint: .accentColor,
+                    iconTint: .appAccent,
                     title: L("settings.filter.tagMode.row"),
                     subtitle: L("settings.filter.tagMode.subtitle")
                 ) {
@@ -810,7 +827,7 @@ private struct FilterSection: View {
                             .init(value: .any, title: L("search.tagMode.any"), icon: nil),
                             .init(value: .all, title: L("search.tagMode.all"), icon: nil),
                         ],
-                        tint: .accentColor
+                        tint: .appAccent
                     )
                     .frame(width: 200)
                 }
@@ -819,22 +836,22 @@ private struct FilterSection: View {
             // Semantic search — controls the embedding-based search engine.
             // Moved here from "General" because conceptually it's about how
             // search filters the list.
-            SettingsGroup(icon: "sparkle", title: L("settings.semantic.title"), tint: .accentColor) {
+            SettingsGroup(icon: "sparkle", title: L("settings.semantic.title"), tint: .appAccent) {
                 SettingsRow(
                     icon: "wand.and.sparkles",
-                    iconTint: .accentColor,
+                    iconTint: .appAccent,
                     title: L("settings.semantic.toggle"),
                     subtitle: L("settings.semantic.subtitle")
                 ) {
                     Toggle("", isOn: semanticFeatureBinding)
                         .labelsHidden()
                         .toggleStyle(.switch)
-                        .tint(.accentColor)
+                        .tint(.appAccent)
                 }
                 if vm.isBackfillingEmbeddings {
                     SettingsRow(
                         icon: "arrow.triangle.2.circlepath",
-                        iconTint: .accentColor,
+                        iconTint: .appAccent,
                         title: L("settings.semantic.indexing.title"),
                         subtitle: String(
                             format: L("settings.semantic.indexing.subtitle.format"),
@@ -918,11 +935,11 @@ private struct FilterSection: View {
     }
 
     private var typesCard: some View {
-        SettingsGroup(icon: "square.grid.2x2", title: L("settings.filter.types.title"), tint: .accentColor) {
+        SettingsGroup(icon: "square.grid.2x2", title: L("settings.filter.types.title"), tint: .appAccent) {
             ForEach(ClipboardItemType.allCases, id: \.self) { type in
                 SettingsRow(
                     icon: type.icon,
-                    iconTint: .accentColor,
+                    iconTint: .appAccent,
                     title: type.displayName,
                     subtitle: nil
                 ) {
@@ -935,7 +952,7 @@ private struct FilterSection: View {
                     ))
                     .labelsHidden()
                     .toggleStyle(.switch)
-                    .tint(.accentColor)
+                    .tint(.appAccent)
                 }
             }
         }
@@ -1029,28 +1046,28 @@ private struct MergeSection: View {
 
     var body: some View {
         VStack(spacing: 18) {
-            SettingsGroup(icon: "square.stack.3d.up", title: L("settings.merge.behavior.title"), tint: .accentColor) {
+            SettingsGroup(icon: "square.stack.3d.up", title: L("settings.merge.behavior.title"), tint: .appAccent) {
                 SettingsRow(
                     icon: "trash",
-                    iconTint: .accentColor,
+                    iconTint: .appAccent,
                     title: L("settings.merge.deleteOriginals"),
                     subtitle: L("settings.merge.deleteOriginals.subtitle")
                 ) {
                     Toggle("", isOn: $store.deleteOriginals)
                         .labelsHidden()
                         .toggleStyle(.switch)
-                        .tint(.accentColor)
+                        .tint(.appAccent)
                 }
                 SettingsRow(
                     icon: "photo.on.rectangle.angled",
-                    iconTint: .accentColor,
+                    iconTint: .appAccent,
                     title: L("settings.merge.enableImageMerge"),
                     subtitle: L("settings.merge.enableImageMerge.subtitle")
                 ) {
                     Toggle("", isOn: $store.enableImageMerge)
                         .labelsHidden()
                         .toggleStyle(.switch)
-                        .tint(.accentColor)
+                        .tint(.appAccent)
                 }
             }
 
@@ -1184,17 +1201,17 @@ private struct MCPSettings: View {
 
     var body: some View {
         VStack(spacing: 18) {
-            SettingsGroup(icon: "network", title: L("settings.mcp.title"), tint: .accentColor) {
+            SettingsGroup(icon: "network", title: L("settings.mcp.title"), tint: .appAccent) {
                 SettingsRow(
                     icon: "switch.2",
-                    iconTint: .accentColor,
+                    iconTint: .appAccent,
                     title: L("settings.mcp.enable"),
                     subtitle: L("settings.mcp.enable.subtitle")
                 ) {
                     Toggle("", isOn: $mcpEnabled)
                         .labelsHidden()
                         .toggleStyle(.switch)
-                        .tint(.accentColor)
+                        .tint(.appAccent)
                 }
             }
 
@@ -1225,7 +1242,7 @@ private struct MCPSettings: View {
                             ToastCenter.shared.show(
                                 L("settings.mcp.copied"),
                                 systemImage: "doc.on.clipboard.fill",
-                                tint: .accentColor
+                                tint: .appAccent
                             )
                         } label: {
                             Image(systemName: "doc.on.clipboard")
@@ -1275,22 +1292,22 @@ private struct DataSection: View {
 
     var body: some View {
         VStack(spacing: 18) {
-            SettingsGroup(icon: "trash", title: L("settings.data.trash.title"), tint: .accentColor) {
+            SettingsGroup(icon: "trash", title: L("settings.data.trash.title"), tint: .appAccent) {
                 SettingsRow(
                     icon: "trash.circle",
-                    iconTint: .accentColor,
+                    iconTint: .appAccent,
                     title: L("settings.data.trash.enable"),
                     subtitle: L("settings.data.trash.enable.subtitle")
                 ) {
                     Toggle("", isOn: $filters.trashEnabled)
                         .labelsHidden()
                         .toggleStyle(.switch)
-                        .tint(.accentColor)
+                        .tint(.appAccent)
                 }
                 if filters.trashEnabled {
                     SettingsRow(
                         icon: "clock.arrow.circlepath",
-                        iconTint: .accentColor,
+                        iconTint: .appAccent,
                         title: L("settings.data.trash.autoClean"),
                         subtitle: L("settings.data.trash.autoClean.subtitle")
                     ) {
@@ -1306,21 +1323,21 @@ private struct DataSection: View {
                 }
             }
 
-            SettingsGroup(icon: "chart.bar.xaxis", title: L("settings.data.stats.title"), tint: .accentColor) {
+            SettingsGroup(icon: "chart.bar.xaxis", title: L("settings.data.stats.title"), tint: .appAccent) {
                 SettingsRow(
                     icon: "chart.line.uptrend.xyaxis",
-                    iconTint: .accentColor,
+                    iconTint: .appAccent,
                     title: L("settings.data.stats.recordCopy"),
                     subtitle: L("settings.data.stats.recordCopy.subtitle")
                 ) {
                     Toggle("", isOn: $stats.enabled)
                         .labelsHidden()
                         .toggleStyle(.switch)
-                        .tint(.accentColor)
+                        .tint(.appAccent)
                 }
                 SettingsRow(
                     icon: "chart.bar.xaxis",
-                    iconTint: .accentColor,
+                    iconTint: .appAccent,
                     title: L("settings.data.export.clearStats"),
                     subtitle: L("settings.data.stats.clear.subtitle")
                 ) {
@@ -1614,6 +1631,44 @@ private struct MaxRecordsField: View {
         } else {
             // Reject empty / non-numeric — fall back to the last good value.
             text = "\(value)"
+        }
+    }
+}
+
+// MARK: - Accent swatches
+//
+// Row of color circles, one per palette entry, with a ring around the active
+// swatch. Tapping a swatch commits the new palette to AppStorage; the root
+// scene then re-renders and `Color.appAccent` resolves to the new tint via
+// the `.tint()` modifier applied there.
+private struct AccentSwatches: View {
+    @Binding var selection: AccentPalette
+
+    var body: some View {
+        HStack(spacing: 10) {
+            ForEach(AccentPalette.allCases) { palette in
+                Button {
+                    withAnimation(.easeOut(duration: 0.15)) { selection = palette }
+                } label: {
+                    ZStack {
+                        Circle()
+                            .fill(palette.color)
+                            .frame(width: 22, height: 22)
+                            .overlay(
+                                Circle().strokeBorder(.black.opacity(0.12), lineWidth: 0.5)
+                            )
+                        if selection == palette {
+                            Circle()
+                                .strokeBorder(palette.color, lineWidth: 2)
+                                .frame(width: 30, height: 30)
+                        }
+                    }
+                    .frame(width: 32, height: 32)
+                    .contentShape(Circle())
+                }
+                .buttonStyle(.plain)
+                .help(palette.displayName)
+            }
         }
     }
 }

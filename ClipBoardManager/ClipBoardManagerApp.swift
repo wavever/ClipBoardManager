@@ -22,12 +22,19 @@ struct ClipBoardManagerApp: App {
     @AppStorage("hideFromCapture") private var hideFromCapture = false
     @AppStorage("appearanceTheme") private var appearanceThemeRaw = AppearanceTheme.system.rawValue
     @AppStorage("appLanguage") private var appLanguageRaw = AppLanguage.system.rawValue
+    // Holding this `@AppStorage` on the root scene is what makes a palette
+    // change trigger a body rebuild — `Color.appAccent` reads from the same
+    // key, so descendants pick up the new colour on the next render pass.
+    @AppStorage("accentPalette") private var accentPaletteRaw = AccentPalette.sage.rawValue
 
     private var appearanceTheme: AppearanceTheme {
         AppearanceTheme(rawValue: appearanceThemeRaw) ?? .system
     }
     private var appLanguage: AppLanguage {
         AppLanguage(rawValue: appLanguageRaw) ?? .system
+    }
+    private var accentPalette: AccentPalette {
+        AccentPalette(rawValue: accentPaletteRaw) ?? .sage
     }
 
     var body: some Scene {
@@ -37,6 +44,7 @@ struct ClipBoardManagerApp: App {
                 .modelContainer(AppContainer.shared)
                 .preferredColorScheme(appearanceTheme.colorScheme)
                 .environment(\.locale, appLanguage.locale ?? Locale.current)
+                .tint(accentPalette.color)
                 .onAppear {
                     applyActivationPolicy()
                     applyCaptureProtection()
@@ -57,6 +65,7 @@ struct ClipBoardManagerApp: App {
                 .modelContainer(AppContainer.shared)
                 .preferredColorScheme(appearanceTheme.colorScheme)
                 .environment(\.locale, appLanguage.locale ?? Locale.current)
+                .tint(accentPalette.color)
         }
         .menuBarExtraStyle(.window)
     }

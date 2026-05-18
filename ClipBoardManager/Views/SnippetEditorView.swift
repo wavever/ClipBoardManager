@@ -21,7 +21,7 @@ struct SnippetEditorView: View {
             HStack(spacing: 10) {
                 Image(systemName: "square.and.pencil")
                     .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(Color.accentColor)
+                    .foregroundStyle(Color.appAccent)
                 Text(L("snippet.title"))
                     .font(.system(size: 17, weight: .semibold))
                 Spacer()

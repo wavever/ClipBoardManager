@@ -40,7 +40,7 @@ struct MenuBarView: View {
                 RoundedRectangle(cornerRadius: 7)
                     .fill(
                         LinearGradient(
-                            colors: [.accentColor, .accentColor.opacity(0.7)],
+                            colors: [.appAccent, .appAccent.opacity(0.7)],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
                         )
@@ -179,7 +179,7 @@ struct MenuBarRow: View {
                     if item.sourceApp == L("remote.universalClipboard") {
                         Image(systemName: "iphone.and.arrow.forward")
                             .font(.system(size: 9, weight: .semibold))
-                            .foregroundStyle(Color.accentColor)
+                            .foregroundStyle(Color.appAccent)
                     }
                     Text("\(item.sourceApp) · \(item.formattedDate)")
                         .font(.system(size: 10))
@@ -212,7 +212,7 @@ struct MenuBarRow: View {
         .padding(.vertical, 6)
         .background(
             RoundedRectangle(cornerRadius: 6)
-                .fill(isHovered ? Color.accentColor.opacity(0.12) : .clear)
+                .fill(isHovered ? Color.appAccent.opacity(0.12) : .clear)
         )
         .contentShape(Rectangle())
         .onTapGesture(count: 2) { triggerCopy() }

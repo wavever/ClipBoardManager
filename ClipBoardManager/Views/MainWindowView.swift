@@ -98,7 +98,7 @@ struct MainWindowView: View {
                     ToastCenter.shared.show(
                         pinned ? L("snippet.savedAndPinned") : L("snippet.saved"),
                         systemImage: "square.and.pencil",
-                        tint: .accentColor
+                        tint: .appAccent
                     )
                 },
                 onCancel: { vm.showSnippetEditor = false }
@@ -110,7 +110,7 @@ struct MainWindowView: View {
         // Single, restrained accent halo in the upper-left — avoids the
         // overlapping multi-gradient look that reads as generic.
         RadialGradient(
-            colors: [Color.accentColor.opacity(0.10), Color.clear],
+            colors: [Color.appAccent.opacity(0.10), Color.clear],
             center: UnitPoint(x: 0.08, y: -0.05),
             startRadius: 20,
             endRadius: 520
@@ -218,7 +218,7 @@ struct MainWindowView: View {
                 ToastCenter.shared.show(
                     L("selection.mergedFormat", selected.count) + suffix,
                     systemImage: "square.stack.3d.up.fill",
-                    tint: .accentColor
+                    tint: .appAccent
                 )
             } label: {
                 Label(L("selection.mergeCountFormat", selected.count), systemImage: "square.stack.3d.up.fill")
@@ -230,7 +230,7 @@ struct MainWindowView: View {
             .buttonStyle(.plain)
             .background(
                 RoundedRectangle(cornerRadius: 8)
-                    .fill(canMerge ? Color.accentColor : Color.accentColor.opacity(0.35))
+                    .fill(canMerge ? Color.appAccent : Color.appAccent.opacity(0.35))
             )
             .disabled(!canMerge)
         }
@@ -261,15 +261,15 @@ struct MainWindowView: View {
         HStack(spacing: 14) {
             ZStack {
                 RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .fill(Color.accentColor.opacity(0.12))
+                    .fill(Color.appAccent.opacity(0.12))
                     .overlay(
                         RoundedRectangle(cornerRadius: 10, style: .continuous)
-                            .strokeBorder(Color.accentColor.opacity(0.35), lineWidth: 1)
+                            .strokeBorder(Color.appAccent.opacity(0.35), lineWidth: 1)
                     )
                     .frame(width: 36, height: 36)
                 Image(systemName: "doc.on.clipboard.fill")
                     .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(Color.accentColor)
+                    .foregroundStyle(Color.appAccent)
             }
 
             VStack(alignment: .leading, spacing: 4) {
@@ -282,7 +282,7 @@ struct MainWindowView: View {
                     HeaderStat(value: "\(allItems.filter { $0.isFavorite }.count)", label: L("main.stat.favorites"))
                     if stats.enabled {
                         HeaderStatDivider()
-                        HeaderStat(value: "\(stats.todayCount())", label: L("main.stat.today"), tint: .accentColor)
+                        HeaderStat(value: "\(stats.todayCount())", label: L("main.stat.today"), tint: .appAccent)
                     }
                 }
             }
@@ -367,14 +367,14 @@ struct MainWindowView: View {
             Spacer()
             ZStack {
                 Circle()
-                    .stroke(Color.accentColor.opacity(0.15), lineWidth: 1)
+                    .stroke(Color.appAccent.opacity(0.15), lineWidth: 1)
                     .frame(width: 110, height: 110)
                 Circle()
-                    .stroke(Color.accentColor.opacity(0.08), lineWidth: 1)
+                    .stroke(Color.appAccent.opacity(0.08), lineWidth: 1)
                     .frame(width: 150, height: 150)
                 Image(systemName: emptyStateIcon)
                     .font(.system(size: 30, weight: .light))
-                    .foregroundStyle(Color.accentColor.opacity(0.85))
+                    .foregroundStyle(Color.appAccent.opacity(0.85))
             }
             VStack(spacing: 6) {
                 Text(emptyStateTitle)
@@ -683,7 +683,7 @@ private struct ToolbarSearchField: View {
     /// which engine is driving the results.
     private var tint: Color {
         switch mode {
-        case .fullText: return .accentColor
+        case .fullText: return .appAccent
         case .semantic: return .purple
         case .tag:      return .orange
         }
@@ -869,7 +869,7 @@ private struct ToolbarSearchField: View {
                 icon: "text.magnifyingglass",
                 title: L("common.searchMode.full"),
                 isOn: mode == .fullText,
-                tint: .accentColor
+                tint: .appAccent
             ) {
                 switchMode(to: .fullText)
             }
@@ -981,13 +981,13 @@ private struct TagChipInline: View {
         .padding(.vertical, 2)
         .background(
             Capsule(style: .continuous)
-                .fill(Color.accentColor.opacity(0.18))
+                .fill(Color.appAccent.opacity(0.18))
         )
         .overlay(
             Capsule(style: .continuous)
-                .strokeBorder(Color.accentColor.opacity(0.35), lineWidth: 0.5)
+                .strokeBorder(Color.appAccent.opacity(0.35), lineWidth: 0.5)
         )
-        .foregroundStyle(Color.accentColor)
+        .foregroundStyle(Color.appAccent)
         .fixedSize()
     }
 }
@@ -1033,7 +1033,7 @@ private struct TagSuggestionRow: View {
             HStack(spacing: 6) {
                 Image(systemName: "tag.fill")
                     .font(.system(size: 10))
-                    .foregroundStyle(Color.accentColor)
+                    .foregroundStyle(Color.appAccent)
                 Text(tag)
                     .font(.system(size: 12))
                     .lineLimit(1)
@@ -1043,7 +1043,7 @@ private struct TagSuggestionRow: View {
             .padding(.horizontal, 10)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(
-                Rectangle().fill(hovering ? Color.accentColor.opacity(0.15) : Color.clear)
+                Rectangle().fill(hovering ? Color.appAccent.opacity(0.15) : Color.clear)
             )
             .contentShape(Rectangle())
         }
