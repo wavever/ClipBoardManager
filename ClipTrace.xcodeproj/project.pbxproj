@@ -47,6 +47,7 @@
 		A10040 /* AppearancePreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10040; };
 		A10041 /* Localization.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10041; };
 		A10042 /* TagEditorPopover.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10042; };
+		A10100 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = V10001 /* InfoPlist.strings */; };
 		A20001 /* KeyboardShortcuts in Frameworks */ = {isa = PBXBuildFile; productRef = P10001 /* KeyboardShortcuts */; };
 /* End PBXBuildFile section */
 
@@ -91,6 +92,8 @@
 		B10040 /* AppearancePreferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppearancePreferences.swift; sourceTree = "<group>"; };
 		B10041 /* Localization.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Localization.swift; sourceTree = "<group>"; };
 		B10042 /* TagEditorPopover.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TagEditorPopover.swift; sourceTree = "<group>"; };
+		B10100 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/InfoPlist.strings; sourceTree = "<group>"; };
+		B10101 /* zh-Hans */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "zh-Hans"; path = "zh-Hans.lproj/InfoPlist.strings"; sourceTree = "<group>"; };
 		B10099 /* ClipTrace.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ClipTrace.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -123,6 +126,7 @@
 				E10005 /* ViewModels */,
 				E10006 /* Services */,
 				B10011 /* Assets.xcassets */,
+				V10001 /* InfoPlist.strings */,
 			);
 			path = ClipTrace;
 			sourceTree = "<group>";
@@ -262,10 +266,23 @@
 			buildActionMask = 2147483647;
 			files = (
 				A10011 /* Assets.xcassets in Resources */,
+				A10100 /* InfoPlist.strings in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
+
+/* Begin PBXVariantGroup section */
+		V10001 /* InfoPlist.strings */ = {
+			isa = PBXVariantGroup;
+			children = (
+				B10100 /* en */,
+				B10101 /* zh-Hans */,
+			);
+			name = InfoPlist.strings;
+			sourceTree = "<group>";
+		};
+/* End PBXVariantGroup section */
 
 /* Begin PBXSourcesBuildPhase section */
 		H10001 /* Sources */ = {
