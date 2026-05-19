@@ -132,6 +132,15 @@ struct FullDiskAccessOnboardingView: View {
     }
 
     static func openFullDiskAccessPane() {
+        // Probe an FDA-gated file first. macOS only adds an app to the Full
+        // Disk Access list after it has actually attempted to read a protected
+        // location; without this attempt the pane opens but the app isn't in
+        // the list, forcing the user to click "+" and locate it themselves.
+        // The read is expected to fail when permission is missing — we only
+        // need the access attempt itself to register the app with TCC.
+        let probe = URL(fileURLWithPath: "/Library/Application Support/com.apple.TCC/TCC.db")
+        _ = try? Data(contentsOf: probe)
+
         let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles")!
         NSWorkspace.shared.open(url)
     }
