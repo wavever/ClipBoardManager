@@ -31,7 +31,7 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             build
 
-      - name: Package .app into zip
+      - name: Package .app into dmg
         id: package
         run: |
           APP_PATH="build/Build/Products/Release/ClipTrace.app"
@@ -41,9 +41,15 @@ jobs:
             exit 1
           fi
           VERSION="${GITHUB_REF_NAME#v}"
-          ZIP_NAME="ClipTrace-${VERSION}.zip"
-          ditto -c -k --sequesterRsrc --keepParent "$APP_PATH" "$ZIP_NAME"
-          echo "zip=$ZIP_NAME" >> "$GITHUB_OUTPUT"
+          DMG_NAME="ClipTrace-${VERSION}.dmg"
+          STAGING=$(mktemp -d)
+          cp -R "$APP_PATH" "$STAGING/"
+          ln -s /Applications "$STAGING/Applications"
+          hdiutil create -volname "ClipTrace" \
+            -srcfolder "$STAGING" \
+            -ov -format UDZO \
+            "$DMG_NAME"
+          echo "dmg=$DMG_NAME" >> "$GITHUB_OUTPUT"
 
       - name: Create GitHub Release
         env:
@@ -52,4 +58,4 @@ jobs:
           gh release create "$GITHUB_REF_NAME" \
             --title "$GITHUB_REF_NAME" \
             --generate-notes \
-            "${{ steps.package.outputs.zip }}"
+            "${{ steps.package.outputs.dmg }}"
