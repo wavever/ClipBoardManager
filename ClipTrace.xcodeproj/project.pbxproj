@@ -51,7 +51,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		B10001 /* ClipBoardManagerApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipBoardManagerApp.swift; sourceTree = "<group>"; };
+		B10001 /* ClipTraceApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipTraceApp.swift; sourceTree = "<group>"; };
 		B10002 /* ClipboardItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardItem.swift; sourceTree = "<group>"; };
 		B10003 /* ClipboardMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardMonitor.swift; sourceTree = "<group>"; };
 		B10004 /* ExportService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExportService.swift; sourceTree = "<group>"; };
@@ -91,7 +91,7 @@
 		B10040 /* AppearancePreferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppearancePreferences.swift; sourceTree = "<group>"; };
 		B10041 /* Localization.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Localization.swift; sourceTree = "<group>"; };
 		B10042 /* TagEditorPopover.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TagEditorPopover.swift; sourceTree = "<group>"; };
-		B10099 /* ClipBoardManager.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ClipBoardManager.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		B10099 /* ClipTrace.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ClipTrace.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -109,22 +109,22 @@
 		E10001 = {
 			isa = PBXGroup;
 			children = (
-				E10002 /* ClipBoardManager */,
+				E10002 /* ClipTrace */,
 				E10007 /* Products */,
 			);
 			sourceTree = "<group>";
 		};
-		E10002 /* ClipBoardManager */ = {
+		E10002 /* ClipTrace */ = {
 			isa = PBXGroup;
 			children = (
-				B10001 /* ClipBoardManagerApp.swift */,
+				B10001 /* ClipTraceApp.swift */,
 				E10003 /* Models */,
 				E10004 /* Views */,
 				E10005 /* ViewModels */,
 				E10006 /* Services */,
 				B10011 /* Assets.xcassets */,
 			);
-			path = ClipBoardManager;
+			path = ClipTrace;
 			sourceTree = "<group>";
 		};
 		E10003 /* Models */ = {
@@ -196,7 +196,7 @@
 		E10007 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				B10099 /* ClipBoardManager.app */,
+				B10099 /* ClipTrace.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -204,9 +204,9 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		F10001 /* ClipBoardManager */ = {
+		F10001 /* ClipTrace */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = G10003 /* Build configuration list for PBXNativeTarget "ClipBoardManager" */;
+			buildConfigurationList = G10003 /* Build configuration list for PBXNativeTarget "ClipTrace" */;
 			buildPhases = (
 				H10001 /* Sources */,
 				D10001 /* Frameworks */,
@@ -216,12 +216,12 @@
 			);
 			dependencies = (
 			);
-			name = ClipBoardManager;
+			name = ClipTrace;
 			packageProductDependencies = (
 				P10001 /* KeyboardShortcuts */,
 			);
-			productName = ClipBoardManager;
-			productReference = B10099 /* ClipBoardManager.app */;
+			productName = ClipTrace;
+			productReference = B10099 /* ClipTrace.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -234,7 +234,7 @@
 				LastSwiftUpdateCheck = 1500;
 				LastUpgradeCheck = 1500;
 			};
-			buildConfigurationList = G10001 /* Build configuration list for PBXProject "ClipBoardManager" */;
+			buildConfigurationList = G10001 /* Build configuration list for PBXProject "ClipTrace" */;
 			compatibilityVersion = "Xcode 14.0";
 			developmentRegion = "zh-Hans";
 			hasScannedForEncodings = 0;
@@ -251,7 +251,7 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				F10001 /* ClipBoardManager */,
+				F10001 /* ClipTrace */,
 			);
 		};
 /* End PBXProject section */
@@ -434,7 +434,7 @@
 				DEVELOPMENT_TEAM = "";
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = ClipBoardManager/Info.plist;
+				INFOPLIST_FILE = ClipTrace/Info.plist;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "Copyright © 2026. All rights reserved.";
 				INFOPLIST_KEY_NSMainStoryboardFile = "";
 				INFOPLIST_KEY_NSPrincipalClass = NSApplication;
@@ -442,8 +442,8 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 1.0.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.clipboard.manager;
+				MARKETING_VERSION = 0.9.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.wavever.cliptrace;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
@@ -462,7 +462,7 @@
 				DEVELOPMENT_TEAM = "";
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = ClipBoardManager/Info.plist;
+				INFOPLIST_FILE = ClipTrace/Info.plist;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "Copyright © 2026. All rights reserved.";
 				INFOPLIST_KEY_NSMainStoryboardFile = "";
 				INFOPLIST_KEY_NSPrincipalClass = NSApplication;
@@ -470,8 +470,8 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 1.0.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.clipboard.manager;
+				MARKETING_VERSION = 0.9.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.wavever.cliptrace;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
@@ -481,7 +481,7 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		G10001 /* Build configuration list for PBXProject "ClipBoardManager" */ = {
+		G10001 /* Build configuration list for PBXProject "ClipTrace" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				G10002 /* Debug */,
@@ -490,7 +490,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		G10003 /* Build configuration list for PBXNativeTarget "ClipBoardManager" */ = {
+		G10003 /* Build configuration list for PBXNativeTarget "ClipTrace" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				G10005 /* Debug */,

@@ -15,9 +15,9 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "F10001"
-               BuildableName = "ClipBoardManager.app"
-               BlueprintName = "ClipBoardManager"
-               ReferencedContainer = "container:ClipBoardManager.xcodeproj">
+               BuildableName = "ClipTrace.app"
+               BlueprintName = "ClipTrace"
+               ReferencedContainer = "container:ClipTrace.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
       </BuildActionEntries>
@@ -43,9 +43,9 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "F10001"
-            BuildableName = "ClipBoardManager.app"
-            BlueprintName = "ClipBoardManager"
-            ReferencedContainer = "container:ClipBoardManager.xcodeproj">
+            BuildableName = "ClipTrace.app"
+            BlueprintName = "ClipTrace"
+            ReferencedContainer = "container:ClipTrace.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </LaunchAction>
@@ -60,9 +60,9 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "F10001"
-            BuildableName = "ClipBoardManager.app"
-            BlueprintName = "ClipBoardManager"
-            ReferencedContainer = "container:ClipBoardManager.xcodeproj">
+            BuildableName = "ClipTrace.app"
+            BlueprintName = "ClipTrace"
+            ReferencedContainer = "container:ClipTrace.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </ProfileAction>

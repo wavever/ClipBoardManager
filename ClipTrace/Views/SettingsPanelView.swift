@@ -1470,7 +1470,7 @@ private struct AboutSection: View {
     private var appName: String {
         Bundle.main.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String
             ?? Bundle.main.object(forInfoDictionaryKey: "CFBundleName") as? String
-            ?? "ClipBoard Manager"
+            ?? "剪迹"
     }
 
     private var version: String {
@@ -1612,9 +1612,9 @@ private struct AboutSection: View {
         }
     }
 
-    private static let repoURL = URL(string: "https://github.com/wavever/ClipBoardManager")!
-    private static let licenseURL = URL(string: "https://github.com/wavever/ClipBoardManager/blob/main/LICENSE")!
-    private static let issuesURL = URL(string: "https://github.com/wavever/ClipBoardManager/issues")!
+    private static let repoURL = URL(string: "https://github.com/wavever/ClipTrace")!
+    private static let licenseURL = URL(string: "https://github.com/wavever/ClipTrace/blob/main/LICENSE")!
+    private static let issuesURL = URL(string: "https://github.com/wavever/ClipTrace/issues")!
 
     private func systemVersionString() -> String {
         let v = ProcessInfo.processInfo.operatingSystemVersion

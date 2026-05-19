@@ -1,4 +1,4 @@
-# ClipBoardManager - macOS 剪贴板历史管理器
+# ClipTrace - macOS 剪贴板历史管理器
 
 一款轻量级的 macOS 剪贴板历史管理工具，支持文字、图片、视频、文件等多种类型的剪贴板内容记录和管理。内置本地语义搜索，无需联网即可按语义查找历史片段；同时以 MCP server 形式开放给 Claude / Cursor 等 AI 工具调用。
 
@@ -95,7 +95,7 @@
 {
   "mcpServers": {
     "clipboard": {
-      "command": "/Applications/ClipBoardManager.app/Contents/MacOS/ClipBoardManager",
+      "command": "/Applications/ClipTrace.app/Contents/MacOS/ClipTrace",
       "args": ["--mcp"]
     }
   }
@@ -124,21 +124,21 @@
 ## 🚀 构建和运行
 
 ### 方式一：Xcode 打开
-1. 双击打开 `ClipBoardManager.xcodeproj`
+1. 双击打开 `ClipTrace.xcodeproj`
 2. 选择目标设备为 "My Mac"
 3. 点击 ▶️ 运行
 
 ### 方式二：命令行构建
 ```bash
-cd ClipBoardManager
-xcodebuild -project ClipBoardManager.xcodeproj -scheme ClipBoardManager -configuration Debug build
+cd ClipTrace
+xcodebuild -project ClipTrace.xcodeproj -scheme ClipTrace -configuration Debug build
 ```
 
 ## 📁 项目结构
 
 ```
-ClipBoardManager/
-├── ClipBoardManagerApp.swift              # @main AppLauncher：分流 --mcp / GUI；SwiftUI 场景与 AppDelegate
+ClipTrace/
+├── ClipTraceApp.swift              # @main AppLauncher：分流 --mcp / GUI；SwiftUI 场景与 AppDelegate
 ├── Models/
 │   ├── ClipboardItem.swift                # SwiftData 模型（含 embedding、deletedAt 软删除标记）
 │   ├── FilterSettings.swift               # 过滤 + URL 净化 + 按类型保留 + 垃圾桶配置

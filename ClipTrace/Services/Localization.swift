@@ -160,7 +160,7 @@ extension L10n {
         "scope.favorites": "收藏",
 
         // main window
-        "main.title": "剪贴板历史",
+        "main.title": "剪迹",
         "main.stat.records": "条记录",
         "main.stat.favorites": "收藏",
         "main.stat.today": "今日",
@@ -274,7 +274,7 @@ extension L10n {
         "settings.accent.blue":     "经典蓝",
         "settings.window.title": "窗口行为",
         "settings.window.launchAtLogin": "开机自启",
-        "settings.window.launchAtLogin.subtitle": "登录系统时自动运行 ClipBoard Manager",
+        "settings.window.launchAtLogin.subtitle": "登录系统时自动运行 剪迹",
         "settings.window.showInDock": "在 Dock 中显示",
         "settings.window.showInDock.subtitle": "关闭后应用以菜单栏方式存在，不占用 Dock",
         "settings.window.menuBarIcon": "显示菜单栏图标",
@@ -513,10 +513,10 @@ extension L10n {
 
         // onboarding
         "onboarding.title": "一次授权，告别权限弹框",
-        "onboarding.subtitle": "让 ClipBoard Manager 可以预览任意文件",
-        "onboarding.body": "当你复制位于「桌面」「下载」「文稿」「iCloud 云盘」等受保护位置的文件时，macOS 会逐个文件夹弹窗请求授权。\n\n在「系统设置 → 隐私与安全性 → 完全磁盘访问」中打开 ClipBoard Manager 的开关后，所有此类提示都会消失。",
+        "onboarding.subtitle": "让 剪迹 可以预览任意文件",
+        "onboarding.body": "当你复制位于「桌面」「下载」「文稿」「iCloud 云盘」等受保护位置的文件时，macOS 会逐个文件夹弹窗请求授权。\n\n在「系统设置 → 隐私与安全性 → 完全磁盘访问」中打开 剪迹 的开关后，所有此类提示都会消失。",
         "onboarding.step1": "点击下方「打开系统设置」",
-        "onboarding.step2": "在列表中找到 ClipBoard Manager",
+        "onboarding.step2": "在列表中找到 剪迹",
         "onboarding.step3": "把右侧开关打开（可能需要解锁）",
         "onboarding.openPrefs": "打开系统设置",
         "onboarding.later": "稍后再说",
@@ -606,7 +606,7 @@ extension L10n {
         "scope.favorites": "Favorites",
 
         // main window
-        "main.title": "Clipboard History",
+        "main.title": "ClipTrace",
         "main.stat.records": "records",
         "main.stat.favorites": "favorites",
         "main.stat.today": "today",
@@ -720,7 +720,7 @@ extension L10n {
         "settings.accent.blue":     "Classic Blue",
         "settings.window.title": "Window Behavior",
         "settings.window.launchAtLogin": "Launch at login",
-        "settings.window.launchAtLogin.subtitle": "Start ClipBoard Manager automatically on login",
+        "settings.window.launchAtLogin.subtitle": "Start ClipTrace automatically on login",
         "settings.window.showInDock": "Show in Dock",
         "settings.window.showInDock.subtitle": "When off, runs as a menu bar app only",
         "settings.window.menuBarIcon": "Show menu bar icon",
@@ -959,10 +959,10 @@ extension L10n {
 
         // onboarding
         "onboarding.title": "One-time grant, no more permission popups",
-        "onboarding.subtitle": "Let ClipBoard Manager preview any file",
-        "onboarding.body": "When you copy files in protected locations like Desktop, Downloads, Documents, or iCloud Drive, macOS prompts for permission folder by folder.\n\nEnable ClipBoard Manager in System Settings → Privacy & Security → Full Disk Access to silence all such prompts.",
+        "onboarding.subtitle": "Let ClipTrace preview any file",
+        "onboarding.body": "When you copy files in protected locations like Desktop, Downloads, Documents, or iCloud Drive, macOS prompts for permission folder by folder.\n\nEnable ClipTrace in System Settings → Privacy & Security → Full Disk Access to silence all such prompts.",
         "onboarding.step1": "Click \"Open System Settings\" below",
-        "onboarding.step2": "Find ClipBoard Manager in the list",
+        "onboarding.step2": "Find ClipTrace in the list",
         "onboarding.step3": "Toggle the switch on (you may need to unlock)",
         "onboarding.openPrefs": "Open System Settings",
         "onboarding.later": "Later",

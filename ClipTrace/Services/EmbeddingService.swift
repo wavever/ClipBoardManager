@@ -13,7 +13,7 @@ import NaturalLanguage
 final class EmbeddingService: @unchecked Sendable {
     static let shared = EmbeddingService()
 
-    private let queue = DispatchQueue(label: "com.clipboard.embedding", qos: .utility)
+    private let queue = DispatchQueue(label: "com.wavever.cliptrace.embedding", qos: .utility)
 
     private init() {}
 

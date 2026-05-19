@@ -22,8 +22,8 @@ jobs:
       - name: Build
         run: |
           xcodebuild \
-            -project ClipBoardManager.xcodeproj \
-            -scheme ClipBoardManager \
+            -project ClipTrace.xcodeproj \
+            -scheme ClipTrace \
             -configuration Debug \
             -destination 'platform=macOS' \
             -derivedDataPath build \

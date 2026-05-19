@@ -9,11 +9,11 @@ struct AppLauncher {
             MCPServer.run()
             return
         }
-        ClipBoardManagerApp.main()
+        ClipTraceApp.main()
     }
 }
 
-struct ClipBoardManagerApp: App {
+struct ClipTraceApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @StateObject private var clipboardVM = ClipboardViewModel()
 
@@ -38,7 +38,7 @@ struct ClipBoardManagerApp: App {
     }
 
     var body: some Scene {
-        WindowGroup("ClipBoardManager", id: "main") {
+        WindowGroup("剪迹", id: "main") {
             MainWindowView()
                 .environmentObject(clipboardVM)
                 .modelContainer(AppContainer.shared)
@@ -133,7 +133,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     @MainActor
     private static func openMainWindow() {
         NSApp.activate(ignoringOtherApps: true)
-        for window in NSApp.windows where window.title == "ClipBoardManager" {
+        for window in NSApp.windows where window.title == "剪迹" {
             window.makeKeyAndOrderFront(nil)
             return
         }

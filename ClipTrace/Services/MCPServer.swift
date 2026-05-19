@@ -12,7 +12,7 @@ import SwiftData
 /// reads while the main app is running.
 enum MCPServer {
     private static let protocolVersion = "2024-11-05"
-    private static let serverName = "ClipBoardManager"
+    private static let serverName = "ClipTrace"
     private static let serverVersion = "1.0.0"
     private static let semanticThreshold: Float = 0.35
     private static let semanticStrongThreshold: Float = 0.55

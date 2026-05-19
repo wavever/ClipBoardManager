@@ -21,8 +21,8 @@ jobs:
       - name: Build (Release)
         run: |
           xcodebuild \
-            -project ClipBoardManager.xcodeproj \
-            -scheme ClipBoardManager \
+            -project ClipTrace.xcodeproj \
+            -scheme ClipTrace \
             -configuration Release \
             -derivedDataPath build \
             -skipMacroValidation \
@@ -34,14 +34,14 @@ jobs:
       - name: Package .app into zip
         id: package
         run: |
-          APP_PATH="build/Build/Products/Release/ClipBoardManager.app"
+          APP_PATH="build/Build/Products/Release/ClipTrace.app"
           if [ ! -d "$APP_PATH" ]; then
             echo "App not found at $APP_PATH"
             find build -name "*.app" -type d
             exit 1
           fi
           VERSION="${GITHUB_REF_NAME#v}"
-          ZIP_NAME="ClipBoardManager-${VERSION}.zip"
+          ZIP_NAME="ClipTrace-${VERSION}.zip"
           ditto -c -k --sequesterRsrc --keepParent "$APP_PATH" "$ZIP_NAME"
           echo "zip=$ZIP_NAME" >> "$GITHUB_OUTPUT"
 
