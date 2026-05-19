@@ -6,6 +6,7 @@ import AppKit
 /// empty result becomes a "no text found" placeholder rather than a silent
 /// dismissal, because users explicitly asked for that feedback. The sheet has
 /// no cancel affordance: only the trailing Close button can dismiss it.
+@MainActor
 struct OCRResultView: View {
     let item: ClipboardItem
     let onClose: () -> Void

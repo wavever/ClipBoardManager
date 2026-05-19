@@ -1499,6 +1499,7 @@ private struct DataSection: View {
 
 // MARK: - About
 
+@MainActor
 private struct AboutSection: View {
     private let updateChecker = UpdateChecker.shared
 
@@ -1650,6 +1651,12 @@ private struct AboutSection: View {
 // a status line that reflects checking/up-to-date/available/error, and the
 // release notes preview when an update is found. Distribution happens on
 // GitHub Releases, so "update" means "open the release page in the browser".
+//
+// `@MainActor` is explicit because the helper computed properties below
+// (`statusIcon`, `statusText`, `trailingControls`) read from the MainActor-
+// isolated `UpdateChecker` — without the annotation strict-concurrency builds
+// fail to verify isolation, even though SwiftUI does run views on main.
+@MainActor
 private struct UpdateCheckCard: View {
     let checker: UpdateChecker
 
