@@ -645,19 +645,21 @@ private struct GeneralSection: View {
                         .toggleStyle(.switch)
                         .tint(.appAccent)
                 }
-                SettingsRow(
-                    icon: "capsule.portrait",
-                    iconTint: .appAccent,
-                    title: L("settings.window.dynamicIsland"),
-                    subtitle: L("settings.window.dynamicIsland.subtitle")
-                ) {
-                    Toggle("", isOn: $dynamicIslandEnabled)
-                        .labelsHidden()
-                        .toggleStyle(.switch)
-                        .tint(.appAccent)
-                        .onChange(of: dynamicIslandEnabled) { _, newValue in
-                            DynamicIslandController.shared.setEnabled(newValue)
-                        }
+                if DynamicIslandController.hasNotchedDisplay {
+                    SettingsRow(
+                        icon: "capsule.portrait",
+                        iconTint: .appAccent,
+                        title: L("settings.window.dynamicIsland"),
+                        subtitle: L("settings.window.dynamicIsland.subtitle")
+                    ) {
+                        Toggle("", isOn: $dynamicIslandEnabled)
+                            .labelsHidden()
+                            .toggleStyle(.switch)
+                            .tint(.appAccent)
+                            .onChange(of: dynamicIslandEnabled) { _, newValue in
+                                DynamicIslandController.shared.setEnabled(newValue)
+                            }
+                    }
                 }
                 SettingsRow(
                     icon: "scissors",

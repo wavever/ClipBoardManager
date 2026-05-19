@@ -17,6 +17,14 @@ final class DynamicIslandController: NSObject {
         UserDefaults.standard.bool(forKey: "dynamicIslandEnabled")
     }
 
+    /// True when any connected display has a notch. The feature only makes
+    /// visual sense on notched MacBooks — without a notch the capsule just
+    /// floats over the menu bar — so the Settings UI hides the toggle when
+    /// this returns false.
+    static var hasNotchedDisplay: Bool {
+        NSScreen.screens.contains { $0.safeAreaInsets.top > 0 }
+    }
+
     /// Called on app launch and whenever the setting toggles.
     func setEnabled(_ enabled: Bool) {
         if enabled {
@@ -99,18 +107,18 @@ final class DynamicIslandController: NSObject {
         positionPanel(for: newState)
     }
 
-    /// Anchor the panel to the top-center of the main screen, just below the
-    /// menu bar. On notched MacBooks this naturally lands directly beneath
-    /// the notch.
+    /// Anchor the panel flush with the very top of the main screen so the
+    /// pill overlaps the notch on notched MacBooks (the previous code used
+    /// `visibleFrame.maxY`, which is the bottom edge of the menu bar — that
+    /// landed the pill *below* the notch instead of merging with it).
     private func positionPanel(for state: DynamicIslandState) {
         guard let panel else { return }
         let screen = NSScreen.main ?? NSScreen.screens.first
         guard let screen else { return }
 
         let size = state.size
-        let visible = screen.visibleFrame
         let originX = screen.frame.midX - size.width / 2
-        let originY = visible.maxY - size.height - 4
+        let originY = screen.frame.maxY - size.height
         let frame = NSRect(x: originX, y: originY, width: size.width, height: size.height)
         panel.setFrame(frame, display: true, animate: true)
     }
