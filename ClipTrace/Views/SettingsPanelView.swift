@@ -816,6 +816,13 @@ private struct ShortcutSection: View {
                 }
             }
         }
+        // Refresh whenever the app comes back to the foreground — the typical
+        // flow is "click Grant → flip the toggle in System Settings → return
+        // here", which without this listener leaves the row stuck on "Not
+        // granted" until the user manually re-checks.
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            accessibilityTrusted = AutoPasteService.isTrusted
+        }
     }
 }
 
