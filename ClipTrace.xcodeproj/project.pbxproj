@@ -47,6 +47,8 @@
 		A10040 /* AppearancePreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10040; };
 		A10041 /* Localization.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10041; };
 		A10042 /* TagEditorPopover.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10042; };
+		A10043 /* OCRService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10043; };
+		A10044 /* OCRResultView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10044; };
 		A10100 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = V10001 /* InfoPlist.strings */; };
 		A20001 /* KeyboardShortcuts in Frameworks */ = {isa = PBXBuildFile; productRef = P10001 /* KeyboardShortcuts */; };
 /* End PBXBuildFile section */
@@ -92,6 +94,8 @@
 		B10040 /* AppearancePreferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppearancePreferences.swift; sourceTree = "<group>"; };
 		B10041 /* Localization.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Localization.swift; sourceTree = "<group>"; };
 		B10042 /* TagEditorPopover.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TagEditorPopover.swift; sourceTree = "<group>"; };
+		B10043 /* OCRService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OCRService.swift; sourceTree = "<group>"; };
+		B10044 /* OCRResultView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OCRResultView.swift; sourceTree = "<group>"; };
 		B10100 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/InfoPlist.strings; sourceTree = "<group>"; };
 		B10101 /* zh-Hans */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "zh-Hans"; path = "zh-Hans.lproj/InfoPlist.strings"; sourceTree = "<group>"; };
 		B10099 /* ClipTrace.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ClipTrace.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -153,6 +157,7 @@
 				B10015 /* ThumbnailView.swift */,
 				B10016 /* PreviewPopover.swift */,
 				B10042 /* TagEditorPopover.swift */,
+				B10044 /* OCRResultView.swift */,
 				B10018 /* ToastView.swift */,
 				B10020 /* SettingsPanelView.swift */,
 				B10022 /* VisualEffectView.swift */,
@@ -193,6 +198,7 @@
 				B10036 /* QuickPasteController.swift */,
 				B10038 /* DynamicIslandController.swift */,
 				B10041 /* Localization.swift */,
+				B10043 /* OCRService.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -328,6 +334,8 @@
 				A10040 /* AppearancePreferences.swift in Sources */,
 				A10041 /* Localization.swift in Sources */,
 				A10042 /* TagEditorPopover.swift in Sources */,
+				A10043 /* OCRService.swift in Sources */,
+				A10044 /* OCRResultView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

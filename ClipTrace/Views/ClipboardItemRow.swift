@@ -19,6 +19,7 @@ struct ClipboardItemRow: View {
     @State private var isHovered = false
     @State private var showPreview = false
     @State private var showTagEditor = false
+    @State private var showOCR = false
 
     private var hasFile: Bool {
         guard let url = item.resolvedFileURL else { return false }
@@ -153,6 +154,13 @@ struct ClipboardItemRow: View {
                 onRemove: onRemoveTag
             )
         }
+        .sheet(isPresented: $showOCR) {
+            // No `.interactiveDismissDisabled` needed — macOS sheets don't
+            // dismiss on outside taps, and we deliberately omit any cancel-
+            // role button so Esc has nothing to bind to. Only the close
+            // button in the footer can close this.
+            OCRResultView(item: item, onClose: { showOCR = false })
+        }
     }
 
     private var borderColor: Color {
@@ -221,6 +229,14 @@ struct ClipboardItemRow: View {
                     systemName: "safari",
                     help: L("action.openInBrowser"),
                     action: onOpenURL
+                )
+            }
+            if item.itemType == .image,
+               item.imageData != nil || item.resolvedFileURL != nil {
+                HoverIconButton(
+                    systemName: "text.below.photo",
+                    help: L("action.ocr"),
+                    action: { showOCR = true }
                 )
             }
             if item.itemType == .image, item.imageData != nil {
