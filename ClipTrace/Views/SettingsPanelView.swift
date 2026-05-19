@@ -24,6 +24,7 @@ struct SettingsPanelView: View {
         case shortcut
         case filter
         case merge
+        case ai
         case data
         case about
         var id: Self { self }
@@ -33,6 +34,7 @@ struct SettingsPanelView: View {
             case .shortcut: return L("settings.tab.shortcut")
             case .filter:   return L("settings.tab.filter")
             case .merge:    return L("settings.tab.merge")
+            case .ai:       return L("settings.tab.ai")
             case .data:     return L("settings.tab.data")
             case .about:    return L("settings.tab.about")
             }
@@ -155,10 +157,22 @@ struct SettingsPanelView: View {
             FilterSection()
         case .merge:
             MergeSection()
+        case .ai:
+            AISection()
         case .data:
             DataSection()
         case .about:
             AboutSection()
+        }
+    }
+}
+
+// MARK: - AI
+
+private struct AISection: View {
+    var body: some View {
+        VStack(spacing: 18) {
+            MCPSettings()
         }
     }
 }
@@ -1214,7 +1228,7 @@ private struct MergeSection: View {
     }
 }
 
-// MARK: - MCP (composes into DataSection)
+// MARK: - MCP (composes into AISection)
 
 private struct MCPSettings: View {
     @AppStorage("mcpEnabled") private var mcpEnabled = true
@@ -1227,7 +1241,7 @@ private struct MCPSettings: View {
         """
         {
           "mcpServers": {
-            "clipboard": {
+            "cliptrace": {
               "command": "\(executablePath)",
               "args": ["--mcp"]
             }
@@ -1299,6 +1313,19 @@ private struct MCPSettings: View {
                         .help(L("settings.mcp.copyButton"))
                         .padding(6)
                     }
+            }
+
+            SettingsGroup(icon: "wrench.and.screwdriver", title: L("settings.mcp.tools.title"), tint: .appAccent) {
+                ForEach(MCPServer.publicTools, id: \.name) { tool in
+                    SettingsRow(
+                        icon: "function",
+                        iconTint: .appAccent,
+                        title: tool.name,
+                        subtitle: L(tool.descriptionLocalizationKey)
+                    ) {
+                        EmptyView()
+                    }
+                }
             }
         }
         .opacity(mcpEnabled ? 1 : 0.6)
@@ -1450,9 +1477,6 @@ private struct DataSection: View {
                 }
             }
 
-            // MCP — moved here from its own tab so all data-related controls
-            // (storage, retention, integrations) live together.
-            MCPSettings()
         }
     }
 

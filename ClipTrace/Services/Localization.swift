@@ -244,6 +244,7 @@ extension L10n {
         "settings.tab.filter": "过滤",
         "settings.tab.merge": "合并",
         "settings.tab.mcp": "MCP",
+        "settings.tab.ai": "AI",
         "settings.tab.data": "数据",
         "settings.tab.about": "关于",
 
@@ -254,6 +255,10 @@ extension L10n {
         "settings.mcp.config.subtitle": "复制下方 JSON 粘贴到 MCP 客户端的配置文件",
         "settings.mcp.copyButton": "一键复制配置",
         "settings.mcp.copied": "MCP 配置已复制",
+        "settings.mcp.tools.title": "可用工具",
+        "settings.mcp.tools.search_clipboard.desc": "搜索剪贴板历史。优先使用本地语义嵌入排序,失败时回退到关键字匹配。",
+        "settings.mcp.tools.list_recent.desc": "列出最近的剪贴板条目,可按类型过滤。",
+        "settings.mcp.tools.get_clip.desc": "根据 UUID 获取单条剪贴板条目,返回完整内容与元数据。",
 
         // settings: general
         "settings.language.title": "界面语言",
@@ -690,6 +695,7 @@ extension L10n {
         "settings.tab.filter": "Filters",
         "settings.tab.merge": "Merge",
         "settings.tab.mcp": "MCP",
+        "settings.tab.ai": "AI",
         "settings.tab.data": "Data",
         "settings.tab.about": "About",
 
@@ -700,6 +706,10 @@ extension L10n {
         "settings.mcp.config.subtitle": "Copy the JSON below into your MCP client's config file",
         "settings.mcp.copyButton": "Copy Config",
         "settings.mcp.copied": "MCP config copied",
+        "settings.mcp.tools.title": "Available Tools",
+        "settings.mcp.tools.search_clipboard.desc": "Search clipboard history. Uses local sentence embeddings for semantic ranking when possible, falls back to keyword matching.",
+        "settings.mcp.tools.list_recent.desc": "List the most recent clipboard entries, optionally filtered by type.",
+        "settings.mcp.tools.get_clip.desc": "Fetch a single clipboard entry by UUID, returning full content plus metadata.",
 
         // settings: general
         "settings.language.title": "Language",

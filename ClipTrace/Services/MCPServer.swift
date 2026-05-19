@@ -138,11 +138,38 @@ enum MCPServer {
         case toolNotFound(String)
     }
 
+    /// Public catalog of MCP tools exposed by this server. Used both by the
+    /// JSON-RPC `tools/list` response and by the Settings UI so the two
+    /// stay in sync.
+    struct ToolInfo {
+        let name: String
+        let description: String
+        let descriptionLocalizationKey: String
+    }
+
+    static let publicTools: [ToolInfo] = [
+        ToolInfo(
+            name: "search_clipboard",
+            description: "Search clipboard history. Uses local sentence embeddings for semantic ranking when possible, falls back to keyword matching.",
+            descriptionLocalizationKey: "settings.mcp.tools.search_clipboard.desc"
+        ),
+        ToolInfo(
+            name: "list_recent",
+            description: "List the most recent clipboard entries, optionally filtered by type.",
+            descriptionLocalizationKey: "settings.mcp.tools.list_recent.desc"
+        ),
+        ToolInfo(
+            name: "get_clip",
+            description: "Fetch a single clipboard entry by UUID, returning full content plus metadata.",
+            descriptionLocalizationKey: "settings.mcp.tools.get_clip.desc"
+        ),
+    ]
+
     private static func toolDescriptors() -> [[String: Any]] {
         [
             [
                 "name": "search_clipboard",
-                "description": "Search clipboard history. Uses local sentence embeddings for semantic ranking when possible, falls back to keyword matching.",
+                "description": publicTools[0].description,
                 "inputSchema": [
                     "type": "object",
                     "properties": [
@@ -164,7 +191,7 @@ enum MCPServer {
             ],
             [
                 "name": "list_recent",
-                "description": "List the most recent clipboard entries, optionally filtered by type.",
+                "description": publicTools[1].description,
                 "inputSchema": [
                     "type": "object",
                     "properties": [
@@ -181,7 +208,7 @@ enum MCPServer {
             ],
             [
                 "name": "get_clip",
-                "description": "Fetch a single clipboard entry by UUID, returning full content plus metadata.",
+                "description": publicTools[2].description,
                 "inputSchema": [
                     "type": "object",
                     "properties": [
