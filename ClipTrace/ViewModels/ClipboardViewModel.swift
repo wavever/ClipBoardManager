@@ -194,8 +194,9 @@ class ClipboardViewModel: ObservableObject {
     private func scheduleRetentionTimer(context: ModelContext) {
         retentionTimer?.invalidate()
         retentionTimer = Timer.scheduledTimer(withTimeInterval: 3_600, repeats: true) { [weak self] _ in
+            guard let self = self else { return }
             Task { @MainActor in
-                self?.applyRetentionCleanup(context: context)
+                self.applyRetentionCleanup(context: context)
             }
         }
     }
