@@ -38,7 +38,9 @@ struct ClipTraceApp: App {
     }
 
     var body: some Scene {
-        WindowGroup("剪迹", id: "main") {
+        // `Window` (not `WindowGroup`) so opening from the menu bar reuses the
+        // existing window instead of stacking a new one each click.
+        Window("剪迹", id: "main") {
             MainWindowView()
                 .environmentObject(clipboardVM)
                 .modelContainer(AppContainer.shared)
