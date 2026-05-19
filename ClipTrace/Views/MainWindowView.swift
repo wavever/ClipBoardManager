@@ -120,7 +120,13 @@ struct MainWindowView: View {
     }
 
     private var listScreen: some View {
-        VStack(spacing: 0) {
+        // Compute the filtered list once per render — the empty check, the
+        // selection bar, and the card list all consumed it independently
+        // before, forcing 2–3 full filter passes per scope toggle.
+        let items = filteredItems
+        let split = splitItems(for: items)
+
+        return VStack(spacing: 0) {
             header
             toolbar
                 .background(
@@ -133,13 +139,13 @@ struct MainWindowView: View {
                         }
                 )
 
-            if filteredItems.isEmpty {
+            if items.isEmpty {
                 emptyState
             } else {
                 ZStack(alignment: .bottom) {
-                    cardList
+                    cardList(split: split)
                     if vm.isSelectionMode {
-                        selectionActionBar
+                        selectionActionBar(for: items)
                             .padding(.horizontal, 16)
                             .padding(.bottom, 14)
                             .transition(.move(edge: .bottom).combined(with: .opacity))
@@ -150,14 +156,14 @@ struct MainWindowView: View {
         }
     }
 
-    private var selectionActionBar: some View {
-        let selected = vm.orderedSelectedItems(filteredItems)
+    private func selectionActionBar(for items: [ClipboardItem]) -> some View {
+        let selected = vm.orderedSelectedItems(items)
         let blockReason = vm.mergeBlockReason(selectedItems: selected)
         let canMerge = blockReason == nil
-        let allSelected = !filteredItems.isEmpty && selected.count == filteredItems.count
+        let allSelected = !items.isEmpty && selected.count == items.count
 
         return HStack(spacing: 10) {
-            Text(L("selection.selectedFormat", selected.count, filteredItems.count))
+            Text(L("selection.selectedFormat", selected.count, items.count))
                 .font(.system(size: 13, weight: .semibold))
                 .monospacedDigit()
             if let reason = blockReason, !selected.isEmpty {
@@ -176,12 +182,12 @@ struct MainWindowView: View {
             ) {
                 withAnimation(.spring(response: 0.28, dampingFraction: 0.78)) {
                     if allSelected { vm.clearSelection() }
-                    else { vm.selectAll(filteredItems) }
+                    else { vm.selectAll(items) }
                 }
             }
             SelectionBarButton(systemName: "arrow.triangle.2.circlepath", title: L("selection.invert")) {
                 withAnimation(.spring(response: 0.28, dampingFraction: 0.78)) {
-                    vm.invertSelection(filteredItems)
+                    vm.invertSelection(items)
                 }
             }
 
@@ -426,16 +432,20 @@ struct MainWindowView: View {
 
     /// Split filtered items into a pinned section + the rest, but only when
     /// the user is on the "全部" scope — inside "收藏" a section header
-    /// would just be noise.
-    private var splitItems: (pinned: [ClipboardItem], others: [ClipboardItem]) {
-        let items = filteredItems
-        guard vm.selectedScope == .all else { return ([], items) }
-        return (items.filter { $0.isPinned }, items.filter { !$0.isPinned })
+    /// would just be noise so we fold pinned entries back to the top of the
+    /// list. Pin-ordering lives here (not in the VM) so we only walk the list
+    /// once per render.
+    private func splitItems(for items: [ClipboardItem]) -> (pinned: [ClipboardItem], others: [ClipboardItem]) {
+        let pinned = items.filter { $0.isPinned }
+        let others = items.filter { !$0.isPinned }
+        if vm.selectedScope == .all {
+            return (pinned, others)
+        }
+        return ([], pinned + others)
     }
 
-    private var cardList: some View {
-        let split = splitItems
-        return ScrollView {
+    private func cardList(split: (pinned: [ClipboardItem], others: [ClipboardItem])) -> some View {
+        ScrollView {
             LazyVStack(spacing: 8) {
                 if !split.pinned.isEmpty {
                     pinnedHeader(count: split.pinned.count)

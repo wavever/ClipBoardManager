@@ -727,12 +727,9 @@ class ClipboardViewModel: ObservableObject {
             }
         }
 
-        // Pinned items float to the top while preserving the createdAt-desc
-        // order from the @Query inside each group.
-        let pinned = result.filter { $0.isPinned }
-        let others = result.filter { !$0.isPinned }
-        result = pinned + others
-
+        // Pin-ordering is the caller's job — MainWindowView splits pinned vs
+        // others for the section header, and a duplicate sort here would be a
+        // wasted pass over the list on every scope/filter change.
         return result
     }
 

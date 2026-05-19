@@ -172,18 +172,26 @@ final class ClipboardItem {
         return type.localizedDescription ?? L("type.file")
     }
 
+    private static let timeFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "HH:mm"
+        return f
+    }()
+
+    private static let dateTimeFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "MM/dd HH:mm"
+        return f
+    }()
+
     var formattedDate: String {
-        let formatter = DateFormatter()
         let calendar = Calendar.current
         if calendar.isDateInToday(createdAt) {
-            formatter.dateFormat = "HH:mm"
-            return L("common.today") + " " + formatter.string(from: createdAt)
+            return L("common.today") + " " + Self.timeFormatter.string(from: createdAt)
         } else if calendar.isDateInYesterday(createdAt) {
-            formatter.dateFormat = "HH:mm"
-            return L("common.yesterday") + " " + formatter.string(from: createdAt)
+            return L("common.yesterday") + " " + Self.timeFormatter.string(from: createdAt)
         } else {
-            formatter.dateFormat = "MM/dd HH:mm"
-            return formatter.string(from: createdAt)
+            return Self.dateTimeFormatter.string(from: createdAt)
         }
     }
 }
