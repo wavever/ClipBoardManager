@@ -401,10 +401,9 @@ extension L10n {
         // settings: about
         "settings.about.info.title": "应用信息",
         "settings.about.version": "版本",
-        "settings.about.build": "构建版本",
         "settings.about.bundleId": "Bundle ID",
         "settings.about.system": "系统",
-        "settings.about.versionFormat": "版本 %@ (%@)",
+        "settings.about.versionFormat": "版本 %@",
         "settings.about.links.title": "项目链接",
         "settings.about.repo": "开源仓库",
         "settings.about.repo.open": "前往 GitHub",
@@ -416,6 +415,19 @@ extension L10n {
         "settings.about.acknowledgements.title": "致谢",
         "settings.about.acknowledgements.subtitle": "本应用使用的开源组件",
         "settings.about.acknowledgements.body": "KeyboardShortcuts — 全局快捷键录制\nApple NLEmbedding — 本地语义索引\n感谢所有开源社区的贡献者。",
+
+        // settings: about / update
+        "settings.about.update.title": "检查更新",
+        "settings.about.update.subtitle": "通过 GitHub Releases 检查最新版本",
+        "settings.about.update.check": "检查更新",
+        "settings.about.update.recheck": "重新检查",
+        "settings.about.update.checking": "正在检查…",
+        "settings.about.update.upToDate": "已是最新版本",
+        "settings.about.update.available": "发现新版本 %@",
+        "settings.about.update.openRelease": "前往下载",
+        "settings.about.update.lastChecked": "上次检查：%@",
+        "settings.about.update.error": "检查失败：%@",
+        "settings.about.update.releaseNotes": "更新内容",
 
         // retention durations
         "retention.forever": "永久",
@@ -857,10 +869,9 @@ extension L10n {
         // settings: about
         "settings.about.info.title": "App Info",
         "settings.about.version": "Version",
-        "settings.about.build": "Build",
         "settings.about.bundleId": "Bundle ID",
         "settings.about.system": "System",
-        "settings.about.versionFormat": "Version %@ (%@)",
+        "settings.about.versionFormat": "Version %@",
         "settings.about.links.title": "Project Links",
         "settings.about.repo": "Source Repository",
         "settings.about.repo.open": "Open on GitHub",
@@ -872,6 +883,19 @@ extension L10n {
         "settings.about.acknowledgements.title": "Acknowledgements",
         "settings.about.acknowledgements.subtitle": "Open-source components used in this app",
         "settings.about.acknowledgements.body": "KeyboardShortcuts — global hotkey recorder\nApple NLEmbedding — on-device semantic index\nThanks to all contributors of the open-source community.",
+
+        // settings: about / update
+        "settings.about.update.title": "Check for Updates",
+        "settings.about.update.subtitle": "Look for new releases on GitHub",
+        "settings.about.update.check": "Check Now",
+        "settings.about.update.recheck": "Check Again",
+        "settings.about.update.checking": "Checking…",
+        "settings.about.update.upToDate": "You're on the latest version",
+        "settings.about.update.available": "New version %@ available",
+        "settings.about.update.openRelease": "Download",
+        "settings.about.update.lastChecked": "Last checked: %@",
+        "settings.about.update.error": "Check failed: %@",
+        "settings.about.update.releaseNotes": "Release notes",
 
         // retention durations
         "retention.forever": "Forever",

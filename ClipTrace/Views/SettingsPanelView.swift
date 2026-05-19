@@ -1500,6 +1500,8 @@ private struct DataSection: View {
 // MARK: - About
 
 private struct AboutSection: View {
+    private let updateChecker = UpdateChecker.shared
+
     private var appName: String {
         Bundle.main.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String
             ?? Bundle.main.object(forInfoDictionaryKey: "CFBundleName") as? String
@@ -1508,10 +1510,6 @@ private struct AboutSection: View {
 
     private var version: String {
         Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "—"
-    }
-
-    private var build: String {
-        Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "—"
     }
 
     private var copyright: String {
@@ -1531,7 +1529,7 @@ private struct AboutSection: View {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(appName)
                             .font(.system(size: 18, weight: .semibold))
-                        Text(L("settings.about.versionFormat", version, build))
+                        Text(L("settings.about.versionFormat", version))
                             .font(.system(size: 12, design: .monospaced))
                             .foregroundStyle(.secondary)
                         if !copyright.isEmpty {
@@ -1544,6 +1542,8 @@ private struct AboutSection: View {
                 }
             }
 
+            UpdateCheckCard(checker: updateChecker)
+
             SettingsGroup(icon: "info.circle", title: L("settings.about.info.title"), tint: .blue) {
                 SettingsRow(
                     icon: "number",
@@ -1552,17 +1552,6 @@ private struct AboutSection: View {
                     subtitle: nil
                 ) {
                     Text(version)
-                        .font(.system(size: 12, design: .monospaced))
-                        .foregroundStyle(.secondary)
-                        .textSelection(.enabled)
-                }
-                SettingsRow(
-                    icon: "hammer",
-                    iconTint: .indigo,
-                    title: L("settings.about.build"),
-                    subtitle: nil
-                ) {
-                    Text(build)
                         .font(.system(size: 12, design: .monospaced))
                         .foregroundStyle(.secondary)
                         .textSelection(.enabled)
@@ -1653,6 +1642,143 @@ private struct AboutSection: View {
         let v = ProcessInfo.processInfo.operatingSystemVersion
         return "macOS \(v.majorVersion).\(v.minorVersion).\(v.patchVersion)"
     }
+}
+
+// MARK: - Update check card
+//
+// Surfaces `UpdateChecker` state to the user: a button that triggers a fetch,
+// a status line that reflects checking/up-to-date/available/error, and the
+// release notes preview when an update is found. Distribution happens on
+// GitHub Releases, so "update" means "open the release page in the browser".
+private struct UpdateCheckCard: View {
+    let checker: UpdateChecker
+
+    var body: some View {
+        SettingCard(
+            title: L("settings.about.update.title"),
+            subtitle: L("settings.about.update.subtitle")
+        ) {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(alignment: .center, spacing: 12) {
+                    statusIcon
+                    Text(statusText)
+                        .font(.system(size: 13))
+                        .foregroundStyle(.primary)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Spacer(minLength: 8)
+                    trailingControls
+                }
+
+                if case .available(_, _, let notes) = checker.phase, !notes.isEmpty {
+                    Divider()
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(L("settings.about.update.releaseNotes"))
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(.secondary)
+                        ScrollView {
+                            Text(notes)
+                                .font(.system(size: 12))
+                                .foregroundStyle(.secondary)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .textSelection(.enabled)
+                        }
+                        .frame(maxHeight: 140)
+                    }
+                }
+
+                if let last = checker.lastChecked {
+                    Text(L("settings.about.update.lastChecked", Self.timestampFormatter.string(from: last)))
+                        .font(.system(size: 11))
+                        .foregroundStyle(.tertiary)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var statusIcon: some View {
+        switch checker.phase {
+        case .checking:
+            ProgressView()
+                .controlSize(.small)
+                .frame(width: 18, height: 18)
+        case .upToDate:
+            Image(systemName: "checkmark.circle.fill")
+                .foregroundStyle(.green)
+        case .available:
+            Image(systemName: "arrow.down.circle.fill")
+                .foregroundStyle(Color.appAccent)
+        case .error:
+            Image(systemName: "exclamationmark.triangle.fill")
+                .foregroundStyle(.orange)
+        case .idle:
+            Image(systemName: "arrow.triangle.2.circlepath")
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private var statusText: String {
+        switch checker.phase {
+        case .idle:
+            return L("settings.about.update.subtitle")
+        case .checking:
+            return L("settings.about.update.checking")
+        case .upToDate:
+            return L("settings.about.update.upToDate")
+        case .available(let version, _, _):
+            return L("settings.about.update.available", version)
+        case .error(let message):
+            return L("settings.about.update.error", message)
+        }
+    }
+
+    @ViewBuilder
+    private var trailingControls: some View {
+        switch checker.phase {
+        case .available(_, let url, _):
+            HStack(spacing: 8) {
+                Button {
+                    NSWorkspace.shared.open(url)
+                } label: {
+                    Label(L("settings.about.update.openRelease"), systemImage: "arrow.up.right.square")
+                        .font(.system(size: 12))
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(.appAccent)
+
+                Button {
+                    checker.check()
+                } label: {
+                    Image(systemName: "arrow.clockwise")
+                        .font(.system(size: 12, weight: .semibold))
+                }
+                .buttonStyle(.bordered)
+                .help(L("settings.about.update.recheck"))
+            }
+        case .checking:
+            EmptyView()
+        default:
+            Button {
+                checker.check()
+            } label: {
+                Label(
+                    checker.phase == .idle
+                        ? L("settings.about.update.check")
+                        : L("settings.about.update.recheck"),
+                    systemImage: "arrow.clockwise"
+                )
+                .font(.system(size: 12))
+            }
+            .buttonStyle(.bordered)
+        }
+    }
+
+    private static let timestampFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateStyle = .short
+        f.timeStyle = .short
+        return f
+    }()
 }
 
 // MARK: - Max records field
