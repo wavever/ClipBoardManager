@@ -14,6 +14,26 @@
 
 ---
 
+## Preview
+
+<p align="center">
+  <img src="docs/screenshots/main.png" alt="Main window" width="720" />
+  <br/>
+  <em>Main window — history, full-text & semantic search, tags</em>
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/stats.png" alt="Activity stats" width="720" />
+  <br/>
+  <em>Activity stats — daily count & yearly heatmap</em>
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/mcp.png" alt="MCP integration" width="720" />
+  <br/>
+  <em>MCP server — connect Claude Desktop / Code / Cursor</em>
+</p>
+
 ## Features
 
 ### Core

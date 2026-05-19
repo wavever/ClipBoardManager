@@ -14,6 +14,26 @@
 
 ---
 
+## 预览
+
+<p align="center">
+  <img src="docs/screenshots/main.png" alt="主界面" width="720" />
+  <br/>
+  <em>主界面 — 历史记录、全文与语义搜索、标签</em>
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/stats.png" alt="活跃统计" width="720" />
+  <br/>
+  <em>活跃统计 — 每日复制次数与年度热力图</em>
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/mcp.png" alt="MCP 集成" width="720" />
+  <br/>
+  <em>MCP 服务器 — 接入 Claude Desktop / Code / Cursor</em>
+</p>
+
 ## 功能特性
 
 ### 核心
