@@ -138,22 +138,13 @@ struct MenuBarView: View {
             Text(L("menubar.shortcutHint"))
                 .font(.caption2)
                 .foregroundStyle(.tertiary)
+            Spacer()
             Button {
                 NSApp.terminate(nil)
             } label: {
-                HStack(spacing: 3) {
-                    Image(systemName: "power")
-                        .font(.system(size: 9, weight: .semibold))
-                    Text(L("menubar.quit"))
-                        .font(.caption2)
-                }
-                .foregroundStyle(.secondary)
-                .padding(.horizontal, 6)
-                .padding(.vertical, 3)
-                .background(
-                    RoundedRectangle(cornerRadius: 5)
-                        .fill(.secondary.opacity(0.15))
-                )
+                Text(L("menubar.quit"))
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
             }
             .buttonStyle(.plain)
             .help(L("menubar.quit"))
