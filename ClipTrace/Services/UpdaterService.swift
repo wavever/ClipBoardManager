@@ -37,8 +37,9 @@ final class UpdaterService: ObservableObject {
             options: [.initial, .new]
         ) { [weak self] updater, _ in
             let value = updater.canCheckForUpdates
+            guard let self else { return }
             Task { @MainActor in
-                self?.canCheck = value
+                self.canCheck = value
             }
         }
     }
