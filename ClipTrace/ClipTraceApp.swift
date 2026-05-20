@@ -61,7 +61,7 @@ struct ClipTraceApp: App {
         .defaultSize(width: 1000, height: 640)
         .windowStyle(.hiddenTitleBar)
 
-        MenuBarExtra("ClipBoard", systemImage: "doc.on.clipboard", isInserted: $menuBarIcon) {
+        MenuBarExtra("ClipBoard", image: "MenuBarIcon", isInserted: $menuBarIcon) {
             MenuBarView()
                 .environmentObject(clipboardVM)
                 .modelContainer(AppContainer.shared)
@@ -108,6 +108,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         DynamicIslandController.shared.setEnabled(
             DynamicIslandController.shared.isEnabled
         )
+        // Touch the singleton so the Sparkle updater starts immediately and
+        // background checks fire on schedule (per SUEnableAutomaticChecks /
+        // SUScheduledCheckInterval in Info.plist) — otherwise it wouldn't be
+        // instantiated until the user opens the About page.
+        _ = UpdaterService.shared
     }
 
     /// Keep the app alive in the menu bar after the main window is closed.

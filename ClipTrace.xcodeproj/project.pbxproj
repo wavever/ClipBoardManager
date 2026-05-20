@@ -49,10 +49,11 @@
 		A10042 /* TagEditorPopover.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10042; };
 		A10043 /* OCRService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10043; };
 		A10044 /* OCRResultView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10044; };
-		A10045 /* UpdateChecker.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10045; };
+		A10045 /* UpdaterService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10045; };
 		A10046 /* PreviewKeyCatcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10046; };
 		A10100 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = V10001 /* InfoPlist.strings */; };
 		A20001 /* KeyboardShortcuts in Frameworks */ = {isa = PBXBuildFile; productRef = P10001 /* KeyboardShortcuts */; };
+		A20002 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = P10002 /* Sparkle */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -98,7 +99,7 @@
 		B10042 /* TagEditorPopover.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TagEditorPopover.swift; sourceTree = "<group>"; };
 		B10043 /* OCRService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OCRService.swift; sourceTree = "<group>"; };
 		B10044 /* OCRResultView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OCRResultView.swift; sourceTree = "<group>"; };
-		B10045 /* UpdateChecker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdateChecker.swift; sourceTree = "<group>"; };
+		B10045 /* UpdaterService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdaterService.swift; sourceTree = "<group>"; };
 		B10046 /* PreviewKeyCatcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreviewKeyCatcher.swift; sourceTree = "<group>"; };
 		B10100 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/InfoPlist.strings; sourceTree = "<group>"; };
 		B10101 /* zh-Hans */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "zh-Hans"; path = "zh-Hans.lproj/InfoPlist.strings"; sourceTree = "<group>"; };
@@ -111,6 +112,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				A20001 /* KeyboardShortcuts in Frameworks */,
+				A20002 /* Sparkle in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -204,7 +206,7 @@
 				B10038 /* DynamicIslandController.swift */,
 				B10041 /* Localization.swift */,
 				B10043 /* OCRService.swift */,
-				B10045 /* UpdateChecker.swift */,
+				B10045 /* UpdaterService.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -235,6 +237,7 @@
 			name = ClipTrace;
 			packageProductDependencies = (
 				P10001 /* KeyboardShortcuts */,
+				P10002 /* Sparkle */,
 			);
 			productName = ClipTrace;
 			productReference = B10099 /* ClipTrace.app */;
@@ -262,6 +265,7 @@
 			mainGroup = E10001;
 			packageReferences = (
 				R10001 /* XCRemoteSwiftPackageReference "KeyboardShortcuts" */,
+				R10002 /* XCRemoteSwiftPackageReference "Sparkle" */,
 			);
 			productRefGroup = E10007 /* Products */;
 			projectDirPath = "";
@@ -342,7 +346,7 @@
 				A10042 /* TagEditorPopover.swift in Sources */,
 				A10043 /* OCRService.swift in Sources */,
 				A10044 /* OCRResultView.swift in Sources */,
-				A10045 /* UpdateChecker.swift in Sources */,
+				A10045 /* UpdaterService.swift in Sources */,
 				A10046 /* PreviewKeyCatcher.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -475,7 +479,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 0.9.2;
+				MARKETING_VERSION = 0.9.3;
 				PRODUCT_BUNDLE_IDENTIFIER = com.wavever.cliptrace;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -503,7 +507,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 0.9.2;
+				MARKETING_VERSION = 0.9.3;
 				PRODUCT_BUNDLE_IDENTIFIER = com.wavever.cliptrace;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -543,6 +547,14 @@
 				minimumVersion = 2.0.0;
 			};
 		};
+		R10002 /* XCRemoteSwiftPackageReference "Sparkle" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/sparkle-project/Sparkle";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.7.0;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -550,6 +562,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = R10001 /* XCRemoteSwiftPackageReference "KeyboardShortcuts" */;
 			productName = KeyboardShortcuts;
+		};
+		P10002 /* Sparkle */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = R10002 /* XCRemoteSwiftPackageReference "Sparkle" */;
+			productName = Sparkle;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

@@ -18,6 +18,18 @@ jobs:
       - name: Show Xcode version
         run: xcodebuild -version
 
+      # Align CFBundleVersion with the marketing version so Sparkle's semver
+      # comparator can decide "appcast.version > running.version" correctly.
+      # Without this step the bundle keeps the static "1" baked into Info.plist
+      # and Sparkle's comparator would parse it as 1.0.0 — which is *higher*
+      # than every 0.9.x release, blocking auto-updates entirely.
+      - name: Pin bundle version to tag
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          plutil -replace CFBundleVersion -string "$VERSION" ClipTrace/Info.plist
+          plutil -replace CFBundleShortVersionString -string "$VERSION" ClipTrace/Info.plist
+          plutil -p ClipTrace/Info.plist | grep -E "Version|SU"
+
       - name: Build (Release)
         run: |
           xcodebuild \
@@ -50,6 +62,101 @@ jobs:
             -ov -format UDZO \
             "$DMG_NAME"
           echo "dmg=$DMG_NAME" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      # Sparkle ships precompiled `sign_update` in its release tarball. We
+      # grab just that tool rather than the whole framework so the step stays
+      # fast and reproducible — the binary is a hermetic command-line app and
+      # doesn't need Xcode or anything else.
+      - name: Fetch Sparkle sign_update tool
+        run: |
+          SPARKLE_VERSION="2.9.2"
+          mkdir -p /tmp/sparkle
+          gh release download "$SPARKLE_VERSION" \
+            --repo sparkle-project/Sparkle \
+            --pattern "Sparkle-${SPARKLE_VERSION}.tar.xz" \
+            --dir /tmp/sparkle
+          tar -xf "/tmp/sparkle/Sparkle-${SPARKLE_VERSION}.tar.xz" -C /tmp/sparkle
+          ls /tmp/sparkle/bin/
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Sign DMG with EdDSA key
+        id: sign
+        env:
+          SPARKLE_EDDSA_PRIVATE_KEY: ${{ secrets.SPARKLE_EDDSA_PRIVATE_KEY }}
+        run: |
+          if [ -z "$SPARKLE_EDDSA_PRIVATE_KEY" ]; then
+            echo "::error::SPARKLE_EDDSA_PRIVATE_KEY secret is not set. Add the base64 private key from generate_keys."
+            exit 1
+          fi
+          # `sign_update -f -` reads the private key from stdin (one base64 line)
+          # and prints `sparkle:edSignature="..." length="..."` on success.
+          SIG_LINE=$(printf "%s" "$SPARKLE_EDDSA_PRIVATE_KEY" | /tmp/sparkle/bin/sign_update -f - "${{ steps.package.outputs.dmg }}")
+          echo "Signature line: $SIG_LINE"
+          ED_SIG=$(printf "%s" "$SIG_LINE" | sed -nE 's/.*sparkle:edSignature="([^"]+)".*/\1/p')
+          LENGTH=$(printf "%s" "$SIG_LINE" | sed -nE 's/.*length="([^"]+)".*/\1/p')
+          if [ -z "$ED_SIG" ] || [ -z "$LENGTH" ]; then
+            echo "::error::Failed to parse sign_update output"
+            exit 1
+          fi
+          echo "ed_signature=$ED_SIG" >> "$GITHUB_OUTPUT"
+          echo "length=$LENGTH" >> "$GITHUB_OUTPUT"
+
+      # Build the appcast item for this release. We try to fetch the previous
+      # appcast.xml (served by GitHub as `releases/latest/download/appcast.xml`,
+      # which always resolves to the latest published release's asset). If it
+      # exists we keep its <item> entries and prepend the new one so users see
+      # full version history; otherwise we start fresh (bootstrap case for the
+      # first Sparkle release).
+      - name: Generate appcast.xml
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION="${{ steps.package.outputs.version }}"
+          TAG="${GITHUB_REF_NAME}"
+          DMG="${{ steps.package.outputs.dmg }}"
+          ED_SIG="${{ steps.sign.outputs.ed_signature }}"
+          LENGTH="${{ steps.sign.outputs.length }}"
+          DMG_URL="https://github.com/${{ github.repository }}/releases/download/${TAG}/${DMG}"
+          RELEASE_URL="https://github.com/${{ github.repository }}/releases/tag/${TAG}"
+          PUBDATE=$(date -u +"%a, %d %b %Y %H:%M:%S +0000")
+
+          PREV_ITEMS_FILE=$(mktemp)
+          if curl -fsSL -o /tmp/prev-appcast.xml \
+              "https://github.com/${{ github.repository }}/releases/latest/download/appcast.xml"; then
+            echo "Existing appcast found — preserving history."
+            awk '/<item>/,/<\/item>/' /tmp/prev-appcast.xml > "$PREV_ITEMS_FILE"
+          else
+            echo "No prior appcast — starting fresh."
+            : > "$PREV_ITEMS_FILE"
+          fi
+
+          {
+            echo '<?xml version="1.0" standalone="yes"?>'
+            echo '<rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" xmlns:dc="http://purl.org/dc/elements/1.1/">'
+            echo '    <channel>'
+            echo '        <title>ClipTrace</title>'
+            echo "        <link>https://github.com/${{ github.repository }}</link>"
+            echo '        <description>ClipTrace release feed</description>'
+            echo '        <language>en</language>'
+            echo '        <item>'
+            echo "            <title>Version ${VERSION}</title>"
+            echo "            <link>${RELEASE_URL}</link>"
+            echo "            <sparkle:version>${VERSION}</sparkle:version>"
+            echo "            <sparkle:shortVersionString>${VERSION}</sparkle:shortVersionString>"
+            echo '            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>'
+            echo "            <description><![CDATA[See <a href=\"${RELEASE_URL}\">${TAG}</a> for release notes.]]></description>"
+            echo "            <pubDate>${PUBDATE}</pubDate>"
+            echo "            <enclosure url=\"${DMG_URL}\" sparkle:edSignature=\"${ED_SIG}\" length=\"${LENGTH}\" type=\"application/octet-stream\" />"
+            echo '        </item>'
+            sed 's/^/        /' "$PREV_ITEMS_FILE"
+            echo '    </channel>'
+            echo '</rss>'
+          } > appcast.xml
+
+          echo "--- Generated appcast.xml ---"
+          cat appcast.xml
 
       - name: Create GitHub Release
         env:
@@ -58,4 +165,5 @@ jobs:
           gh release create "$GITHUB_REF_NAME" \
             --title "$GITHUB_REF_NAME" \
             --generate-notes \
-            "${{ steps.package.outputs.dmg }}"
+            "${{ steps.package.outputs.dmg }}" \
+            "appcast.xml"

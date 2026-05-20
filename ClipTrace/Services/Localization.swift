@@ -426,15 +426,8 @@ extension L10n {
         // settings: about / update
         "settings.about.update.title": "检查更新",
         "settings.about.update.subtitle": "通过 GitHub Releases 检查最新版本",
-        "settings.about.update.check": "检查更新",
-        "settings.about.update.recheck": "重新检查",
-        "settings.about.update.checking": "正在检查…",
-        "settings.about.update.upToDate": "已是最新版本",
-        "settings.about.update.available": "发现新版本 %@",
-        "settings.about.update.openRelease": "前往下载",
-        "settings.about.update.lastChecked": "上次检查：%@",
-        "settings.about.update.error": "检查失败：%@",
-        "settings.about.update.releaseNotes": "更新内容",
+        "settings.about.update.hint": "新版本会自动下载并安装，仅在重启应用时生效。",
+        "settings.about.update.check": "立即检查",
 
         // retention durations
         "retention.forever": "永久",
@@ -902,15 +895,8 @@ extension L10n {
         // settings: about / update
         "settings.about.update.title": "Check for Updates",
         "settings.about.update.subtitle": "Look for new releases on GitHub",
+        "settings.about.update.hint": "Updates download and install automatically, applied next launch.",
         "settings.about.update.check": "Check Now",
-        "settings.about.update.recheck": "Check Again",
-        "settings.about.update.checking": "Checking…",
-        "settings.about.update.upToDate": "You're on the latest version",
-        "settings.about.update.available": "New version %@ available",
-        "settings.about.update.openRelease": "Download",
-        "settings.about.update.lastChecked": "Last checked: %@",
-        "settings.about.update.error": "Check failed: %@",
-        "settings.about.update.releaseNotes": "Release notes",
 
         // retention durations
         "retention.forever": "Forever",
