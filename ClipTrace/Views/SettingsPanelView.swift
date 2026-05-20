@@ -801,15 +801,20 @@ private struct ShortcutSection: View {
                             .font(.system(size: 12))
                             .foregroundStyle(.secondary)
                         Button {
-                            // Two-pronged grant flow:
-                            //   1. AX trust prompt — registers the running
-                            //      binary with TCC so it appears in the pane.
-                            //   2. Open System Settings → Accessibility — the
-                            //      prompt only works the first time, so this
-                            //      is the only reliable recovery path for
-                            //      users who already have a stale entry.
-                            AutoPasteService.requestTrust()
-                            AutoPasteService.openAccessibilityPane()
+                            // Initial grant: just fire the AX trust prompt.
+                            // The system dialog is enough on first run, and
+                            // also opening the Accessibility pane causes two
+                            // windows to fight for focus. Users who need to
+                            // recover from a stale TCC entry have the
+                            // "Open Accessibility settings" button in the
+                            // recovery hint below.
+                            if accessibilityTrusted {
+                                // Already trusted: this becomes a re-check
+                                // (the label flips to "Re-check" below).
+                                accessibilityTrusted = AutoPasteService.isTrusted
+                            } else {
+                                AutoPasteService.requestTrust()
+                            }
                             // Re-check on next runloop tick — the user typically
                             // toggles in System Settings then returns to the app.
                             DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {

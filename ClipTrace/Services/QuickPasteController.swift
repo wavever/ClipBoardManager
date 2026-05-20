@@ -182,9 +182,14 @@ final class QuickPasteController: NSObject, NSWindowDelegate {
                     )
                     // Bring the Accessibility pane up a moment later so the
                     // toast has time to read; user can ignore if they already
-                    // know what to do.
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
-                        AutoPasteService.openAccessibilityPane()
+                    // know what to do. Debounced to once per app launch so
+                    // repeated Quick Paste attempts don't keep stealing focus
+                    // back to System Settings.
+                    if !AutoPasteService.didOfferAccessibilityRecovery {
+                        AutoPasteService.didOfferAccessibilityRecovery = true
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+                            AutoPasteService.openAccessibilityPane()
+                        }
                     }
                 }
             }

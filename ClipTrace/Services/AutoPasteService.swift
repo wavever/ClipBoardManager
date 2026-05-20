@@ -11,6 +11,12 @@ enum AutoPasteService {
         AXIsProcessTrusted()
     }
 
+    /// One-shot per app launch: tracks whether we've already auto-opened the
+    /// Accessibility pane after a Quick Paste failure. Re-opening it on every
+    /// retry within the same session is intrusive, so callers should consult
+    /// (and set) this before nudging the user to System Settings.
+    static var didOfferAccessibilityRecovery: Bool = false
+
     /// Show the system Accessibility prompt if we're not trusted yet.
     /// Does nothing when already trusted.
     static func requestTrust() {
