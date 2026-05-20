@@ -61,16 +61,53 @@ final class UpdateChecker {
         }
     }
 
+    /// Surface-level error with a human-readable message. Lets the UI show
+    /// something more actionable than Apple's cryptic `-1011` from
+    /// `URLError(.badServerResponse)`.
+    struct CheckError: LocalizedError {
+        let message: String
+        var errorDescription: String? { message }
+    }
+
+    /// GitHub recommends a descriptive User-Agent that identifies the app.
+    /// Using the bundle short version keeps the value pinned to the running
+    /// build (handy for debugging release-specific reports).
+    private static var userAgent: String {
+        let version = (Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String) ?? "0.0.0"
+        return "ClipTrace/\(version) (macOS; +https://github.com/wavever/ClipTrace)"
+    }
+
     private static func fetchLatest() async throws -> Release {
         var request = URLRequest(url: endpoint, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 15)
         request.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
         request.setValue("2022-11-28", forHTTPHeaderField: "X-GitHub-Api-Version")
-        request.setValue("ClipTrace-macOS", forHTTPHeaderField: "User-Agent")
+        request.setValue(userAgent, forHTTPHeaderField: "User-Agent")
         let (data, response) = try await URLSession.shared.data(for: request)
         if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
-            throw URLError(http.statusCode == 404 ? .fileDoesNotExist : .badServerResponse)
+            // Don't throw `URLError(.badServerResponse)` — its `-1011` shows up
+            // as a meaningless code in the UI. Build a status-aware message
+            // instead so the user knows whether to retry, wait, or report.
+            let status = http.statusCode
+            let reason: String
+            switch status {
+            case 403, 429:
+                // GitHub's unauthenticated API limit is 60 req/hr/IP. Easy to
+                // hit when several apps share the same WAN address.
+                reason = "GitHub rate limit reached (HTTP \(status)). Please try again later."
+            case 404:
+                reason = "No release found (HTTP 404)."
+            case 500...599:
+                reason = "GitHub server error (HTTP \(status)). Please try again later."
+            default:
+                reason = "Unexpected response from GitHub (HTTP \(status))."
+            }
+            throw CheckError(message: reason)
         }
-        return try JSONDecoder().decode(Release.self, from: data)
+        do {
+            return try JSONDecoder().decode(Release.self, from: data)
+        } catch {
+            throw CheckError(message: "Could not parse GitHub response: \(error.localizedDescription)")
+        }
     }
 
     private struct Release: Decodable {
