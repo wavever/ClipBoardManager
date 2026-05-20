@@ -154,6 +154,18 @@ struct MainWindowView: View {
                 .animation(.spring(response: 0.32, dampingFraction: 0.82), value: vm.isSelectionMode)
             }
         }
+        // Sits behind everything else — captures Space/↑/↓ when no editable
+        // control owns focus, so QL preview + row navigation work from the
+        // keyboard even though the actual list rows are SwiftUI views.
+        .background(
+            PreviewKeyCatcher(
+                items: { filteredItems },
+                focusedID: { vm.focusedItemID },
+                setFocused: { vm.focusedItemID = $0 }
+            )
+            .frame(width: 0, height: 0)
+            .allowsHitTesting(false)
+        )
     }
 
     private func selectionActionBar(for items: [ClipboardItem]) -> some View {
@@ -471,7 +483,9 @@ struct MainWindowView: View {
         ClipboardItemRow(
             item: item,
             isSelectionMode: vm.isSelectionMode,
-            isSelected: vm.isSelected(item),
+            // In normal browsing mode the same "selected" affordance doubles
+            // as the keyboard-focus marker for arrow-nav + Space preview.
+            isSelected: vm.isSelectionMode ? vm.isSelected(item) : (vm.focusedItemID == item.id),
             onCopy: {
                 vm.copyToClipboard(item)
                 ToastCenter.shared.show(L("common.copied"))
@@ -514,6 +528,9 @@ struct MainWindowView: View {
             onSaveImage: {
                 ExportService.shared.exportItem(item)
             },
+            onPreview: {
+                showQuickLook(for: item)
+            },
             onAddTag: { tag in
                 vm.addTag(tag, to: item)
                 try? modelContext.save()
@@ -528,6 +545,13 @@ struct MainWindowView: View {
         // double-tap on the same view makes SwiftUI delay the single tap
         // until it can rule out a second click — that's the lag we were
         // seeing on selection.
+        // Single tap (non-selection mode) sets keyboard focus so Space and the
+        // arrow keys know which row the user is "on". Kept as a simultaneous
+        // gesture so it doesn't compete with the double-tap-to-copy below
+        // (SwiftUI would otherwise add the click-disambiguation delay).
+        .modifier(FocusTapModifier(enabled: !vm.isSelectionMode) {
+            vm.focusedItemID = item.id
+        })
         .gesture(
             vm.isSelectionMode
                 ? TapGesture(count: 1).onEnded {
@@ -636,6 +660,15 @@ struct MainWindowView: View {
         }
     }
 
+    /// Open the native QuickLook panel for `item`, using the current filtered
+    /// list as the navigation stack so arrow keys move through neighbors.
+    private func showQuickLook(for item: ClipboardItem) {
+        let items = filteredItems
+        let index = items.firstIndex(where: { $0.id == item.id }) ?? 0
+        vm.focusedItemID = item.id
+        QuickLookCoordinator.shared.preview(items: items, startingAt: index)
+    }
+
     private func openInBrowser(_ raw: String) {
         let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
@@ -645,6 +678,21 @@ struct MainWindowView: View {
         }()
         if let url = URL(string: candidate) {
             NSWorkspace.shared.open(url)
+        }
+    }
+}
+
+/// Conditional simultaneous tap gesture used by the row to set keyboard focus
+/// on single click without triggering the double-tap disambiguation delay.
+private struct FocusTapModifier: ViewModifier {
+    let enabled: Bool
+    let action: () -> Void
+
+    func body(content: Content) -> some View {
+        if enabled {
+            content.simultaneousGesture(TapGesture(count: 1).onEnded(action))
+        } else {
+            content
         }
     }
 }
