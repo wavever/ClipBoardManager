@@ -169,12 +169,23 @@ final class QuickPasteController: NSObject, NSWindowDelegate {
             target?.activate(options: [])
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
                 if !AutoPasteService.paste() {
+                    // First-time users get the system prompt; everyone else
+                    // gets nudged toward the Accessibility pane directly,
+                    // since the common failure mode is a stale TCC entry that
+                    // can only be repaired from System Settings.
                     AutoPasteService.requestTrust()
                     ToastCenter.shared.show(
                         L("quickpaste.manualPasteHint"),
                         systemImage: "exclamationmark.triangle.fill",
-                        tint: .orange
+                        tint: .orange,
+                        duration: 4.5
                     )
+                    // Bring the Accessibility pane up a moment later so the
+                    // toast has time to read; user can ignore if they already
+                    // know what to do.
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+                        AutoPasteService.openAccessibilityPane()
+                    }
                 }
             }
         }

@@ -18,6 +18,21 @@ enum AutoPasteService {
         _ = AXIsProcessTrustedWithOptions([key: true] as CFDictionary)
     }
 
+    /// Open the Accessibility pane in System Settings directly. Useful when
+    /// recovering from a stale TCC entry: the user usually needs to *remove*
+    /// the existing ClipTrace row and re-add the currently running binary,
+    /// which is impossible from the AX permission prompt alone.
+    static func openAccessibilityPane() {
+        // Trigger an AX trust check first so TCC at least knows about the
+        // currently running binary — without this, opening the pane may not
+        // surface ClipTrace in the list if it was never granted before.
+        _ = AXIsProcessTrusted()
+
+        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
+            NSWorkspace.shared.open(url)
+        }
+    }
+
     /// Post ⌘V to the system. Returns `false` if Accessibility is missing.
     @discardableResult
     static func paste() -> Bool {
