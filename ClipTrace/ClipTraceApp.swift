@@ -110,6 +110,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         )
     }
 
+    /// Keep the app alive in the menu bar after the main window is closed.
+    /// Users explicitly quit via the menu-bar Quit button or the Dock.
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
+        return false
+    }
+
     private func applyInitialActivationPolicy() {
         let defaults = UserDefaults.standard
         if defaults.object(forKey: "showInDock") == nil {

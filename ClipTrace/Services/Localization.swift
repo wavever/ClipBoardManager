@@ -473,6 +473,7 @@ extension L10n {
         "menubar.empty.noMatch": "未找到匹配的内容",
         "menubar.shortcutHint": "⌘⇧V 打开主窗口",
         "menubar.recordCountFormat": "%d 条记录",
+        "menubar.quit": "退出",
 
         // preview popover
         "preview.cannotImage": "无法预览图片",
@@ -941,6 +942,7 @@ extension L10n {
         "menubar.empty.noMatch": "No matches",
         "menubar.shortcutHint": "⌘⇧V opens main window",
         "menubar.recordCountFormat": "%d records",
+        "menubar.quit": "Quit",
 
         // preview popover
         "preview.cannotImage": "Cannot preview image",
