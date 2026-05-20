@@ -13,11 +13,11 @@ struct ClipboardItemRow: View {
     var onOpenFile: () -> Void = {}
     var onOpenURL: () -> Void = {}
     var onSaveImage: () -> Void = {}
+    var onPreview: () -> Void = {}
     var onAddTag: (String) -> Void = { _ in }
     var onRemoveTag: (String) -> Void = { _ in }
 
     @State private var isHovered = false
-    @State private var showPreview = false
     @State private var showTagEditor = false
     @State private var showOCR = false
 
@@ -199,13 +199,10 @@ struct ClipboardItemRow: View {
                 action: onCopy
             )
             HoverIconButton(
-                systemName: "text.viewfinder",
+                systemName: "eye",
                 help: L("action.preview"),
-                action: { showPreview = true }
+                action: onPreview
             )
-            .popover(isPresented: $showPreview, arrowEdge: .trailing) {
-                PreviewPopover(item: item)
-            }
             HoverIconButton(
                 systemName: item.isPinned ? "pin.fill" : "pin",
                 help: item.isPinned ? L("action.unpin") : L("action.pin"),

@@ -91,6 +91,11 @@ class ClipboardViewModel: ObservableObject {
     @Published var isSelectionMode = false
     @Published var selectedItemIDs: Set<UUID> = []
     @Published var showSnippetEditor = false
+    /// Single-row keyboard focus — used by arrow keys and the Space-to-preview
+    /// shortcut. Distinct from `selectedItemIDs`, which only matters in merge
+    /// mode. Nil means "no row focused"; consumers can fall back to the first
+    /// visible row in that case.
+    @Published var focusedItemID: UUID? = nil
 
     /// True while `backfillEmbeddings` is actively recomputing vectors. The
     /// toolbar uses this to disable the semantic segment, and the settings
