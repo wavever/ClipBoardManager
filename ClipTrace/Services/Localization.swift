@@ -338,6 +338,13 @@ extension L10n {
         "settings.shortcut.permission.notGranted": "尚未授权",
         "settings.shortcut.permission.recheck": "重新检测",
         "settings.shortcut.permission.grant": "授权",
+        "settings.shortcut.permission.openPane": "打开辅助功能设置",
+        "settings.shortcut.permission.recovery.hint": "已授权但仍显示「尚未授权」？常见原因是旧版本与当前运行的 ClipTrace 不是同一个二进制（开发版 / 不同签名 / 不同位置都算）。请前往 系统设置 → 隐私与安全性 → 辅助功能，移除列表中所有 ClipTrace 条目，再点上方「授权」重新添加当前正在运行的实例。",
+        "settings.shortcut.permission.showDiagnostics": "查看当前二进制位置",
+        "settings.shortcut.permission.hideDiagnostics": "收起",
+        "settings.shortcut.permission.diag.bundlePath": "当前 App 路径",
+        "settings.shortcut.permission.diag.bundleId": "Bundle ID",
+        "settings.shortcut.permission.diag.note": "辅助功能授权与「路径 + 代码签名」绑定，路径或签名变化会使旧授权失效。",
 
         // settings: filter
         "settings.filter.link.title": "链接处理",
@@ -498,7 +505,7 @@ extension L10n {
         "quickpaste.paste": "粘贴",
         "quickpaste.pasteInOrderFormat": "按顺序粘贴 (%d)",
         "quickpaste.emptyClipboard": "剪贴板历史为空",
-        "quickpaste.manualPasteHint": "已复制到剪贴板，请手动 ⌘V；可在系统设置「辅助功能」中授权自动粘贴",
+        "quickpaste.manualPasteHint": "已复制到剪贴板，请手动 ⌘V。已为你打开「系统设置 → 辅助功能」，请允许 ClipTrace 以启用自动粘贴",
 
         // trash
         "trash.title": "垃圾桶",
@@ -807,6 +814,13 @@ extension L10n {
         "settings.shortcut.permission.notGranted": "Not granted",
         "settings.shortcut.permission.recheck": "Re-check",
         "settings.shortcut.permission.grant": "Grant",
+        "settings.shortcut.permission.openPane": "Open Accessibility settings",
+        "settings.shortcut.permission.recovery.hint": "Granted but still shows \"Not granted\"? macOS keys Accessibility to a specific binary path + code signature, so a Debug build is a different entry from a Release install. Open System Settings → Privacy & Security → Accessibility, remove every ClipTrace row in the list, then click \"Grant\" above to re-add the currently running instance.",
+        "settings.shortcut.permission.showDiagnostics": "Show current app path",
+        "settings.shortcut.permission.hideDiagnostics": "Hide",
+        "settings.shortcut.permission.diag.bundlePath": "Bundle path",
+        "settings.shortcut.permission.diag.bundleId": "Bundle ID",
+        "settings.shortcut.permission.diag.note": "Accessibility permission is bound to the binary's path and code signature; any change invalidates the previous grant.",
 
         // settings: filter
         "settings.filter.link.title": "Links",
@@ -967,7 +981,7 @@ extension L10n {
         "quickpaste.paste": "Paste",
         "quickpaste.pasteInOrderFormat": "Paste in order (%d)",
         "quickpaste.emptyClipboard": "Clipboard history is empty",
-        "quickpaste.manualPasteHint": "Copied — paste manually with ⌘V; grant Accessibility to auto-paste",
+        "quickpaste.manualPasteHint": "Copied — paste manually with ⌘V. Opened System Settings → Accessibility so you can enable ClipTrace for auto-paste.",
 
         // trash
         "trash.title": "Trash",

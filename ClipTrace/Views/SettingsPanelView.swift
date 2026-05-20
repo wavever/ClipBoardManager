@@ -757,6 +757,10 @@ private struct GeneralSection: View {
 
 private struct ShortcutSection: View {
     @State private var accessibilityTrusted: Bool = AutoPasteService.isTrusted
+    @State private var showDiagnostics = false
+
+    private var bundlePath: String { Bundle.main.bundlePath }
+    private var bundleIdentifier: String { Bundle.main.bundleIdentifier ?? "—" }
 
     var body: some View {
         VStack(spacing: 18) {
@@ -797,7 +801,20 @@ private struct ShortcutSection: View {
                             .font(.system(size: 12))
                             .foregroundStyle(.secondary)
                         Button {
-                            AutoPasteService.requestTrust()
+                            // Initial grant: just fire the AX trust prompt.
+                            // The system dialog is enough on first run, and
+                            // also opening the Accessibility pane causes two
+                            // windows to fight for focus. Users who need to
+                            // recover from a stale TCC entry have the
+                            // "Open Accessibility settings" button in the
+                            // recovery hint below.
+                            if accessibilityTrusted {
+                                // Already trusted: this becomes a re-check
+                                // (the label flips to "Re-check" below).
+                                accessibilityTrusted = AutoPasteService.isTrusted
+                            } else {
+                                AutoPasteService.requestTrust()
+                            }
                             // Re-check on next runloop tick — the user typically
                             // toggles in System Settings then returns to the app.
                             DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
@@ -816,6 +833,18 @@ private struct ShortcutSection: View {
                         }
                     }
                 }
+
+                // Recovery hint + diagnostics. Shown only when permission is
+                // missing — the common cause is a stale TCC entry (old build
+                // path / different signature) that still appears "granted" in
+                // System Settings but doesn't match the running binary.
+                if !accessibilityTrusted {
+                    AccessibilityRecoveryHelp(
+                        bundlePath: bundlePath,
+                        bundleIdentifier: bundleIdentifier,
+                        showDiagnostics: $showDiagnostics
+                    )
+                }
             }
         }
         // Refresh whenever the app comes back to the foreground — the typical
@@ -824,6 +853,92 @@ private struct ShortcutSection: View {
         // granted" until the user manually re-checks.
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
             accessibilityTrusted = AutoPasteService.isTrusted
+        }
+        // Re-read on appear in case the user switched tabs within Settings
+        // (no app activation event) after granting in System Settings.
+        .onAppear {
+            accessibilityTrusted = AutoPasteService.isTrusted
+        }
+    }
+}
+
+/// Recovery hint shown under the Accessibility row when permission isn't
+/// detected. The most common cause is a stale TCC entry — macOS keys
+/// Accessibility to the binary's path + signature, so a Debug build at
+/// `build/.../ClipTrace.app` is a *different* entry from a Release install
+/// at `/Applications/ClipTrace.app` even though both share the bundle ID.
+private struct AccessibilityRecoveryHelp: View {
+    let bundlePath: String
+    let bundleIdentifier: String
+    @Binding var showDiagnostics: Bool
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(L("settings.shortcut.permission.recovery.hint"))
+                .font(.system(size: 11.5))
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+                .lineSpacing(2)
+
+            HStack(spacing: 8) {
+                Button {
+                    AutoPasteService.openAccessibilityPane()
+                } label: {
+                    Label(L("settings.shortcut.permission.openPane"), systemImage: "arrow.up.right.square")
+                        .font(.system(size: 12))
+                }
+                Button {
+                    withAnimation(.easeInOut(duration: 0.18)) { showDiagnostics.toggle() }
+                } label: {
+                    Label(
+                        showDiagnostics
+                            ? L("settings.shortcut.permission.hideDiagnostics")
+                            : L("settings.shortcut.permission.showDiagnostics"),
+                        systemImage: showDiagnostics ? "chevron.up" : "info.circle"
+                    )
+                    .font(.system(size: 12))
+                }
+                .buttonStyle(.borderless)
+            }
+
+            if showDiagnostics {
+                VStack(alignment: .leading, spacing: 6) {
+                    diagnosticsRow(
+                        label: L("settings.shortcut.permission.diag.bundlePath"),
+                        value: bundlePath
+                    )
+                    diagnosticsRow(
+                        label: L("settings.shortcut.permission.diag.bundleId"),
+                        value: bundleIdentifier
+                    )
+                    Text(L("settings.shortcut.permission.diag.note"))
+                        .font(.system(size: 10.5))
+                        .foregroundStyle(.tertiary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .padding(10)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(.secondary.opacity(0.08))
+                )
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.bottom, 12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func diagnosticsRow(label: String, value: String) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(label)
+                .font(.system(size: 10.5, weight: .semibold))
+                .foregroundStyle(.secondary)
+            Text(value)
+                .font(.system(size: 11, design: .monospaced))
+                .foregroundStyle(.primary.opacity(0.85))
+                .textSelection(.enabled)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 }

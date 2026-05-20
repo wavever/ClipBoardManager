@@ -11,11 +11,32 @@ enum AutoPasteService {
         AXIsProcessTrusted()
     }
 
+    /// One-shot per app launch: tracks whether we've already auto-opened the
+    /// Accessibility pane after a Quick Paste failure. Re-opening it on every
+    /// retry within the same session is intrusive, so callers should consult
+    /// (and set) this before nudging the user to System Settings.
+    static var didOfferAccessibilityRecovery: Bool = false
+
     /// Show the system Accessibility prompt if we're not trusted yet.
     /// Does nothing when already trusted.
     static func requestTrust() {
         let key = kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String
         _ = AXIsProcessTrustedWithOptions([key: true] as CFDictionary)
+    }
+
+    /// Open the Accessibility pane in System Settings directly. Useful when
+    /// recovering from a stale TCC entry: the user usually needs to *remove*
+    /// the existing ClipTrace row and re-add the currently running binary,
+    /// which is impossible from the AX permission prompt alone.
+    static func openAccessibilityPane() {
+        // Trigger an AX trust check first so TCC at least knows about the
+        // currently running binary — without this, opening the pane may not
+        // surface ClipTrace in the list if it was never granted before.
+        _ = AXIsProcessTrusted()
+
+        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
+            NSWorkspace.shared.open(url)
+        }
     }
 
     /// Post ⌘V to the system. Returns `false` if Accessibility is missing.
