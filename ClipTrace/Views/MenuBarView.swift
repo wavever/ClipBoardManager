@@ -130,7 +130,7 @@ struct MenuBarView: View {
     }
 
     private var footer: some View {
-        HStack {
+        HStack(spacing: 8) {
             Text(L("menubar.recordCountFormat", allItems.count))
                 .font(.caption2)
                 .foregroundStyle(.secondary)
@@ -138,6 +138,16 @@ struct MenuBarView: View {
             Text(L("menubar.shortcutHint"))
                 .font(.caption2)
                 .foregroundStyle(.tertiary)
+            Spacer()
+            Button {
+                NSApp.terminate(nil)
+            } label: {
+                Text(L("menubar.quit"))
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+            .buttonStyle(.plain)
+            .help(L("menubar.quit"))
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
