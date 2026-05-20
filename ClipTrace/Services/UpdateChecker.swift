@@ -1,11 +1,18 @@
 import Foundation
 import Observation
 
-/// Polls the public GitHub Releases API for the latest published release of
-/// the project repo and compares its tag against the bundle's
+/// Polls the public GitHub Releases Atom feed for the latest published release
+/// of the project repo and compares its tag against the bundle's
 /// `CFBundleShortVersionString`. The app is distributed exclusively through
 /// GitHub Releases, so this is the canonical source of truth for "is there a
 /// newer build available".
+///
+/// We deliberately use the `releases.atom` page (a public HTML feed) instead
+/// of `api.github.com/.../releases/latest`. The API endpoint is gated by a
+/// 60-request-per-hour-per-IP rate limit for unauthenticated callers; users
+/// sharing a NAT or behind corporate egress hit it constantly and the error
+/// surfaces as a confusing "NSURLErrorDomain -1011". The atom feed serves the
+/// same data without that limit.
 ///
 /// Tags are expected to follow `vX.Y.Z` (the leading `v` is optional). Pre-1.0
 /// suffixes like `-beta`/`-rc.1` are tolerated but only the numeric core
@@ -28,7 +35,7 @@ final class UpdateChecker {
 
     private var inflight: Task<Void, Never>?
 
-    private static let endpoint = URL(string: "https://api.github.com/repos/wavever/ClipTrace/releases/latest")!
+    private static let endpoint = URL(string: "https://github.com/wavever/ClipTrace/releases.atom")!
 
     private init() {}
 
@@ -44,13 +51,13 @@ final class UpdateChecker {
             defer { self.inflight = nil }
             do {
                 let release = try await Self.fetchLatest()
-                let latest = Self.normalize(release.tagName)
+                let latest = Self.normalize(release.tag)
                 self.lastChecked = Date()
                 if Self.compareSemver(latest, self.currentVersion) == .orderedDescending {
                     self.phase = .available(
                         version: latest,
                         url: release.htmlURL,
-                        notes: release.body.trimmingCharacters(in: .whitespacesAndNewlines)
+                        notes: release.notes.trimmingCharacters(in: .whitespacesAndNewlines)
                     )
                 } else {
                     self.phase = .upToDate
@@ -69,33 +76,30 @@ final class UpdateChecker {
         var errorDescription: String? { message }
     }
 
-    /// GitHub recommends a descriptive User-Agent that identifies the app.
-    /// Using the bundle short version keeps the value pinned to the running
-    /// build (handy for debugging release-specific reports).
+    /// Polite UA string so GitHub can attribute traffic if anything ever needs
+    /// triaging. The atom feed doesn't require it but the convention costs us
+    /// nothing.
     private static var userAgent: String {
         let version = (Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String) ?? "0.0.0"
         return "ClipTrace/\(version) (macOS; +https://github.com/wavever/ClipTrace)"
     }
 
+    fileprivate struct Release {
+        let tag: String
+        let htmlURL: URL
+        let notes: String
+    }
+
     private static func fetchLatest() async throws -> Release {
         var request = URLRequest(url: endpoint, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 15)
-        request.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
-        request.setValue("2022-11-28", forHTTPHeaderField: "X-GitHub-Api-Version")
         request.setValue(userAgent, forHTTPHeaderField: "User-Agent")
         let (data, response) = try await URLSession.shared.data(for: request)
         if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
-            // Don't throw `URLError(.badServerResponse)` — its `-1011` shows up
-            // as a meaningless code in the UI. Build a status-aware message
-            // instead so the user knows whether to retry, wait, or report.
             let status = http.statusCode
             let reason: String
             switch status {
-            case 403, 429:
-                // GitHub's unauthenticated API limit is 60 req/hr/IP. Easy to
-                // hit when several apps share the same WAN address.
-                reason = "GitHub rate limit reached (HTTP \(status)). Please try again later."
             case 404:
-                reason = "No release found (HTTP 404)."
+                reason = "No releases found (HTTP 404)."
             case 500...599:
                 reason = "GitHub server error (HTTP \(status)). Please try again later."
             default:
@@ -103,30 +107,10 @@ final class UpdateChecker {
             }
             throw CheckError(message: reason)
         }
-        do {
-            return try JSONDecoder().decode(Release.self, from: data)
-        } catch {
-            throw CheckError(message: "Could not parse GitHub response: \(error.localizedDescription)")
+        guard let release = AtomFeedParser.parseFirstEntry(data: data) else {
+            throw CheckError(message: "Could not parse releases feed.")
         }
-    }
-
-    private struct Release: Decodable {
-        let tagName: String
-        let htmlURL: URL
-        let body: String
-
-        enum CodingKeys: String, CodingKey {
-            case tagName = "tag_name"
-            case htmlURL = "html_url"
-            case body
-        }
-
-        init(from decoder: Decoder) throws {
-            let c = try decoder.container(keyedBy: CodingKeys.self)
-            tagName = try c.decode(String.self, forKey: .tagName)
-            htmlURL = try c.decode(URL.self, forKey: .htmlURL)
-            body = (try? c.decode(String.self, forKey: .body)) ?? ""
-        }
+        return release
     }
 
     private static func normalize(_ tag: String) -> String {
@@ -150,5 +134,113 @@ final class UpdateChecker {
             if a > b { return .orderedDescending }
         }
         return .orderedSame
+    }
+}
+
+/// Tiny XMLParser-based extractor that returns the first `<entry>` of a GitHub
+/// Releases Atom feed. We only need three fields — `<title>` (tag),
+/// `<link rel="alternate" href="…">` (release page URL), and `<content
+/// type="html">` (HTML notes) — so a full DOM library would be overkill.
+///
+/// `<content>` is HTML-escaped inside the XML; after `foundCharacters`
+/// decodes the entities we still get an HTML fragment, which `stripHTML`
+/// reduces to plain text suitable for a release-notes blurb.
+private final class AtomFeedParser: NSObject, XMLParserDelegate {
+    static func parseFirstEntry(data: Data) -> UpdateChecker.Release? {
+        let delegate = AtomFeedParser()
+        let parser = XMLParser(data: data)
+        parser.delegate = delegate
+        parser.parse()
+        guard let tag = delegate.title, let url = delegate.htmlURL else { return nil }
+        return UpdateChecker.Release(tag: tag, htmlURL: url, notes: delegate.notesText)
+    }
+
+    private var inEntry = false
+    private var entryFinished = false
+    private var currentElement = ""
+    private var buffer = ""
+
+    private var title: String?
+    private var htmlURL: URL?
+    private var notesText: String = ""
+
+    func parser(
+        _ parser: XMLParser,
+        didStartElement elementName: String,
+        namespaceURI: String?,
+        qualifiedName qName: String?,
+        attributes attributeDict: [String: String] = [:]
+    ) {
+        if entryFinished { return }
+        if elementName == "entry" {
+            inEntry = true
+            return
+        }
+        guard inEntry else { return }
+        currentElement = elementName
+        buffer = ""
+        if elementName == "link",
+           attributeDict["rel"] == "alternate",
+           let href = attributeDict["href"],
+           let url = URL(string: href) {
+            htmlURL = url
+        }
+    }
+
+    func parser(_ parser: XMLParser, foundCharacters string: String) {
+        if entryFinished || !inEntry { return }
+        buffer += string
+    }
+
+    func parser(
+        _ parser: XMLParser,
+        didEndElement elementName: String,
+        namespaceURI: String?,
+        qualifiedName qName: String?
+    ) {
+        if entryFinished { return }
+        if elementName == "entry" {
+            // Stop after the most recent entry — the rest are older releases.
+            entryFinished = true
+            parser.abortParsing()
+            return
+        }
+        guard inEntry else { return }
+        switch elementName {
+        case "title":
+            if title == nil {
+                title = buffer.trimmingCharacters(in: .whitespacesAndNewlines)
+            }
+        case "content":
+            notesText = Self.stripHTML(buffer)
+        default:
+            break
+        }
+        currentElement = ""
+        buffer = ""
+    }
+
+    /// Reduce GitHub's release-notes HTML to plain text. We deliberately keep
+    /// this small (no NSAttributedString HTML import — that's slow and main-
+    /// actor-bound): block-level tags become newlines, list items get a
+    /// leading dash, everything else is stripped, and a handful of named
+    /// entities are decoded. Quality is good enough for a short notes blurb.
+    private static func stripHTML(_ html: String) -> String {
+        var text = html
+        text = text.replacingOccurrences(of: "<br\\s*/?>", with: "\n", options: .regularExpression)
+        text = text.replacingOccurrences(of: "</p>", with: "\n", options: [.regularExpression, .caseInsensitive])
+        text = text.replacingOccurrences(of: "</li>", with: "\n", options: [.regularExpression, .caseInsensitive])
+        text = text.replacingOccurrences(of: "<li[^>]*>", with: "- ", options: [.regularExpression, .caseInsensitive])
+        text = text.replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
+        text = text.replacingOccurrences(of: "&lt;", with: "<")
+        text = text.replacingOccurrences(of: "&gt;", with: ">")
+        text = text.replacingOccurrences(of: "&quot;", with: "\"")
+        text = text.replacingOccurrences(of: "&#39;", with: "'")
+        text = text.replacingOccurrences(of: "&#x27;", with: "'", options: .caseInsensitive)
+        text = text.replacingOccurrences(of: "&nbsp;", with: " ")
+        // Decode `&amp;` last so we don't double-decode entities that contain `&`.
+        text = text.replacingOccurrences(of: "&amp;", with: "&")
+        text = text.replacingOccurrences(of: "\n{3,}", with: "\n\n", options: .regularExpression)
+        return text.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }
